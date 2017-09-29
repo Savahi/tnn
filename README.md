@@ -73,3 +73,21 @@ def learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None,
 
 [See the sample code here / Пример кода см. здесь](samples/sample.py) 
 
+
+## data_handler.InputsShape
+
+A container class for a schema used to generate network inputs from raw data
+
+
+~~~
+def __init__(self, indicators, history, num_cand_inds):
+~~~
+    indicators - List of values to be included into the inputs, in order. Example: ["<OPEN>", "<CLOSE>", "<RSI>"]
+    Full list of possible values: "<OPEN>", "<CLOSE>", "<HIGH>", "<LOW>", "<VOL>", "RETURN", "ADX","ATR","BOLLINGER","CCI","EMA","RSI","SMA"
+    history - how many candles back are used.
+    num_cand_inds - how many candles are used to calculate indicators
+
+~~~
+def num_inputs(self):
+~~~
+    returns the total size of one input. For example, with indicators = ["<OPEN>", "<CLOSE>", "<RSI>"], and history=6, num_inputs would equal 18.
