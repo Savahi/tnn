@@ -14,7 +14,7 @@ setup(
 	],	
 	packages = ['tnn'],
 	keywords = 'neural network tensorflow algorithmic trading stock exchange',
-	install_requires = ['tensorflow', 'numpy', 'datetime'],
+	install_requires = ['tensorflow', 'numpy', 'datetime', 'taft'],
 	zip_safe = False )
 
 
