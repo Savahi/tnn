@@ -91,3 +91,32 @@ def __init__(self, indicators, history, num_cand_inds):
 def num_inputs(self):
 ~~~
     returns the total size of one input. For example, with indicators = ["<OPEN>", "<CLOSE>", "<RSI>"], and history=6, num_inputs would equal 18.
+
+## data_hander.RawData
+
+A class to read data from Finam files and convert it into network-compatible form
+
+
+~~~
+def __init__(self, filename):
+~~~
+    filename - path to the finam data file
+    
+
+~~~
+def form_inputs(self, inputs_shape):
+~~~
+    inputs_shape - a data_handler.InputsShape object
+    Returns an array of numpy.arrays, each corresponding to an input, latest to earliest
+    
+~~~
+def normalize_inputs(self, norm=None, std=None):
+~~~
+    If previously formed inputs, will return the normalized version. If norm and std are not provided, they will be automatically calculated
+    
+~~~
+def dump_to_file(self, filename):
+~~~
+    Wrties the inputs into a shelve file
+    
+   
