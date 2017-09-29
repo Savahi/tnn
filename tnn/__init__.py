@@ -75,15 +75,22 @@ class Network:
         Если не "None", то способ оптимизации может быть задан:
             1) строкой ("GradientDescent", "Adadelta" и т.д.)
             2) напрямую, например: tf.train.GradientDescentOptimizer 
-    predictionProb (float, default:None) - пороговое значение.
-        При превышении это знаачения "аутпутом" (y) в последнем ("торгующем") бине мы считаем, что сеть дает сигнал а сделку. 
-        Если predictionProb=None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
+    predictionProb (float, default:None) - пороговое значение оценки вероятности.
+        При превышении этого значения "аутпутом" (y) в последнем ("торгующем") бине мы считаем, что сеть дает сигнал на сделку. 
+        Если predictionProb==None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
         чем значения в остальных бинах. 
-    summaryDir (string, default:None): папка, куда tensorflow пишет summary ("отчет"). 
+    summaryDir (string, default:None) - папка, куда tensorflow пишет summary ("отчет"). 
         Если summaryDir==None, отчеты записываться не будут.
         Если summaryDir=="", то имя папки будет сгенерировано автоматически из текущих даты и времени (только числа, без других знаков).
-    printRate (int, default:20): частота, с которой во время обучения на терминал выводятся параметры обучения и тестирования сети.
-        Если "None", то вывода параметров не будет
+    printRate (int, default:20) - частота, с которой во время обучения на терминал выводятся параметры обучения и тестирования сети
+        (значение cost-функции, точность (accuracy), баланс (если задан на входе)).
+        Если printRate=="None", то вывода параметров не будет
+    trainTestRegression (boolean, default:False) - если задать True, в процессе обучения, для каждой эпохи будут записываться
+        пары значений (для train и test данных): 
+        - cost-функция на тест vs cost-функция на train
+        - точность (accuracy) на тест vs точность (accuracy) на train
+        - доходность на тест vs доходность на train.
+        По этим парам значений можно будет построить регрессионную зависимость.
     '''
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, learningRate=0.05, numEpochs=1000, 
         balancer=0.0, activationFuncs=None, optimizer=None, predictionProb=None, 
@@ -156,8 +163,8 @@ class Network:
 
             # Если папка для summary = "", имя папки будет состоять из сегодняшней даты и времени (только числа, без других знаков) 
             if summaryDir == "":
-                summaryDir = dt.datetime.now()
-                summaryDir = filter( lambda c: c.isdigit(), summaryDir )
+                summaryDir = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+                # summaryDir = filter( lambda c: c.isdigit(), summaryDir )
             writer = tf.summary.FileWriter( summaryDir )
 
         # Запускаем сессию
