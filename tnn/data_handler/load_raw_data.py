@@ -18,7 +18,7 @@ class InputsShape():
 class RawData():
 	def __init__(self, filename):
 		# check if file exists
-		self.df = pd.read_csv(filename)
+		self.df = pd.read_csv(filename).iloc[::-1]
 		self.raw_inputs = None
 		self.normalized_inputs = None
 		self.inputs_shape = None
