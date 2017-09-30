@@ -2,44 +2,9 @@
 import tensorflow as tf
 import numpy as np
 import datetime as dt
-import shelve
-import os
-
-# Загружает веса сети из файла fileName.
-# Возвращает объект Network в случае успеха и None в случае ошибки.  
-def loadNetwork( fileName ):
-    ok = True 
-
-    try:
-        s = shelve.open( fileName, flag='r' )
-    except Exception:
-        ok = False
-
-    if ok:
-        try:
-            weights = s['weights']
-            bs = s['bs']
-            activationFuncs = s['activationFuncs']
-        except Exception:
-            ok = True
-        finally:
-            s.close()
-
-    if ok:
-        numLayers = len( weights ) - 1
-        numFeatures = np.shape(weights[0])[0]
-        numNodes = [] 
-        for i in range( numLayers ):
-            numNodes.append( np.shape( weights[i])[1] )
-        numLabels = np.shape( weights[numLayers])[1]
-        network = Network( numLayers, numNodes, numFeatures, numLabels, activationFuncs=activationFuncs, weights=weights, bs=bs )
-        return network
-
-    return None
-# end of loadNetwork()
-
 
 class Network:
+
     # Общее число сетей
     numNetworks = 0
 
@@ -49,17 +14,8 @@ class Network:
     numFeatures - (integer, default:10) Размерность "инпутов" (x, они же "samples", в каждом sample присутствует numFeatures значений)
     numLabels  - (integer, default:2) Размерность "аутпутов" (y, они же "labels") заданных в формате "one-hot"
     stdDev - (float) Стандартное отклонение для первичной генерации весов сети, default: 0.03 
-    activationFuncs (list, default:None) - функции активации, размерность numLayers+1 (число hidden-слоев + 1). 
-        Если "None", то активация hidden-слоев будет осуществляться через relu, а output-слоя - через softmax
-        Если не "None", то элемент списка может быть:
-            1) строкой: "relu", "sigmoid", "softmax"
-            2) непосредственно функцией активации
-    weights (list of 2d numpy arrays, default:None) - список, состоящий из двумерных матриц, 
-        хранящих весовые коэффициенты слоев сети. Если weights==None, весовые коэффициенты будут сгенерированы автоматически
-    bs (list of 1d numpy arrays, default:None) - список, состоящий из векторов, 
-        хранящих весовые bias-коэффициенты (свободные члены) сети. Если bs==None, коэффициенты будут сгенерированы автоматически
     '''
-    def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None, weights=None, bs=None ):
+    def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03 ):
         self.numLayers = numLayers # (integer) Число hidden-слоев
         self.numNodes = numNodes # (list of integers) Число узлов в каждом слое, numNodes[0] - число слоев в первом hidden-слое 
         self.numFeatures = numFeatures # (integer) Число features, т.е. размерность "инпутов" (x0,x1,x2,...,xn).
@@ -74,34 +30,27 @@ class Network:
         self.weights = [] # (list of tensors) Веса всех слоев сети 
         self.bs = [] # (list of tensors) Biases всех слоев сети
 
-        if weights is None or bs is None: # Если веса не заданы в качестве параметров функции, инициализируем соответствующие tf-переменные случайными значениями
-            for i in range( numLayers ):  
-                # Веса (w) + bias-столбец (b) для связи "инпутов" x и очередного hidden-слоя.
-                if i == 0: # Если это первый hidden-слой, то его размерность по оси '0' равна numFeatures
-                    numNodes0 = numFeatures
-                else: # Если не первый слой, то его размерность по оси '0' равна размерности предыдущего по оси '1'
-                    numNodes0 = numNodes[i-1]
-                w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(i) )
-                b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), name='b'+str(i) )
-                self.weights.append(w)
-                self.bs.append(b)            
-            # Веса (w) + bias column (b) для связи hidden-слоя и output-слоя. 
-            w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(numLayers) )
-            b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), name='b'+str(numLayers) )
+        for i in range( numLayers ):
+            # Веса (w) + bias-столбец (b) для связи "инпутов" x и очередного hidden-слоя.
+            if i == 0:
+                numNodes0 = numFeatures
+            else:
+                numNodes0 = numNodes[i-1]
+            w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(i) )
+            b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), name='b'+str(i) )
             self.weights.append(w)
             self.bs.append(b)
-        else: # Если веса заданы в качестве параметров функции, инициализируем ими соотетствующие tf-переменные
-            for i in range( numLayers+1 ):
-                w = tf.Variable( weights[i], dtype=tf.float64, name='W'+str(i) )
-                b = tf.Variable( bs[i], dtype=tf.float64, name='b'+str(i) )
-                self.weights.append(w)
-                self.bs.append(b)
 
-        self.activationFuncs = activationFuncs # Функции активации для каждого слоя
+        # Веса (w) + bias column (b) для связи hidden-слоя и output-слоя. 
+        w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(numLayers) )
+        b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), name='b'+str(numLayers) )
 
-        self.learnTime = None # На этапе обучения в эту переменную будет записана строка, сформированная из текущих даты и времени
+        self.weights.append(w)
+        self.bs.append(b)
 
-        Network.numNetworks += 1 # Увеличиваем счетчик сетей на 1.
+        self.layerActivationOps = []
+
+        Network.numNetworks += 1
     # end of __init__
 
     '''
@@ -117,6 +66,11 @@ class Network:
     numEpochs (int, defaul:1000) - self explained
     balancer (float, default:0.0) - если balancer > 0.0, то при вычислении cost-функции совпадение/несовпадение по последнему 
         бину получит весовой коэффициент (balancer+1.0), в то время как по остальным бинам коэффициент будет 1.0.
+    activationFuncs (list, default:None) - функции активации, размерность numLayers+1 (число hidden-слоев + 1). 
+        Если "None", то активация hidden-слоев будет осуществляться через relu, а output-слоя - через softmax
+        Если не "None", то элемент списка может быть:
+            1) строкой: "relu", "sigmoid", "softmax"
+            2) непосредственно функцией активации
     optimizer (string или func, default:None) - способ оптимизации. Если "None", то используется GradientDescentOptimizer. 
         Если не "None", то способ оптимизации может быть задан:
             1) строкой ("GradientDescent", "Adadelta" и т.д.)
@@ -137,24 +91,30 @@ class Network:
         - точность (accuracy) на тест vs точность (accuracy) на train
         - доходность на тест vs доходность на train.
         По этим парам значений можно будет построить регрессионную зависимость.
-    saveRate (integer, default:None) - задает как часто надо сохранять веса сети в процессе обучения.
-        Веса сохраняются в папку saveDir (см. ниже) в файл, имя которого состоит из номера эпохи и
-        текущих значений: cost-функции (см. переменную cost в теле функции), 
-        точности модели (см. переменную accuracy) и прибыльности (см. переменную profit)  
-        Если saveRate==None, веса не сохраняются.
-        Сохраненные веса можно прочитать функцией load().
-    saveDir (string, default:None) - задает имя папки, в которую будет сохраннен файл с весами сети.
-        Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
     '''
-    def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, predictionProb=None, 
-        summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None ):
+    def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, learningRate=0.05, numEpochs=1000, 
+        balancer=0.0, activationFuncs=None, optimizer=None, predictionProb=None, 
+        summaryDir=None, printRate=20, trainTestRegression=False ):
 
-        # Время запуска сеанса обучения в виде текстовой строки. Будет использоваться для создания папок с отчетами 
-        self.learnTime = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+        self.printRate = printRate
 
-        # Создаем tf-операции вычислени "аутпута" (в матмодели это 'y') сети
-        yOp = self.__createNetworkOutputOp()
+        inputMatrix = self.x
+        for i in range( self.numLayers ):
+            # Вычисление (активация) hidden-слоя
+            inputMatrix = tf.add( tf.matmul( inputMatrix, self.weights[i] ), self.bs[i] )
+            if activationFuncs is None: # Если функция активации не задана, используем relu
+                inputMatrix = tf.nn.relu( inputMatrix )
+            else:
+                activationFunc = getActivationFunc( activationFuncs, i ) 
+                inputMatrix = activationFunc( inputMatrix )
+
+        # Операция для вычисления "выхода" сети
+        outputMatrix = tf.add( tf.matmul( inputMatrix, self.weights[self.numLayers] ), self.bs[self.numLayers] )
+        if activationFuncs is None: 
+            yOp = tf.nn.softmax( outputMatrix )
+        else:
+            activationFunc = getActivationFunc( activationFuncs, numLayers, outputLayer=True ) 
+            yOp = activationFunc( outputMatrix )
     
         # Все значения меньше 1e-10 превращаем в 1e-10, все значения больше 0.99999999 превращаем в 0.99999999: 
         yClippedOp = tf.clip_by_value( yOp, 1e-10, 0.99999999 )
@@ -168,7 +128,7 @@ class Network:
 
         # Cost-функция.
         if balancer > 0.0:
-            balancerOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ], dtype=tf.float64 )
+            balancerOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ] )
             balancerOp = tf.concat( [ balancerOp, tf.reshape( predictTradeOp*balancer, [tf.shape(self.y)[0],1] ) ], 1 ) + 1.0
             costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
         else: 
@@ -203,7 +163,8 @@ class Network:
 
             # Если папка для summary = "", имя папки будет состоять из сегодняшней даты и времени (только числа, без других знаков) 
             if summaryDir == "":
-                summaryDir = self.learnTime + "_" + "summary"
+                summaryDir = dt.datetime.now().strftime("%Y%m%d%H%M%S")
+                # summaryDir = filter( lambda c: c.isdigit(), summaryDir )
             writer = tf.summary.FileWriter( summaryDir )
 
         # Запускаем сессию
@@ -215,7 +176,7 @@ class Network:
             feedDictTest = { self.x: xTest, self.y: yTest, profitBySamples: profitTest }
 
             if trainTestRegression:
-                self.__trainTestRegressionInit( numEpochs )
+                self.trainTestRegressionInit( numEpochs )
 
             for epoch in range(numEpochs):
 
@@ -253,13 +214,10 @@ class Network:
                     epochLog += "  TEST: cost=%.4f accuracy=%.4f $=%f" % (costTest, accuracyTest, finalBalanceTest)
     
                 # Добавляем перевод строки
-                self.__printEpochLog( printRate, epoch, epochLog )
+                self.printEpochLog( epoch, epochLog )
 
                 if trainTestRegression:
-                    self.__trainTestRegressionPut( epoch, cost, costTest, accuracy, accuracyTest, finalBalance, finalBalanceTest )
-
-                # Сохраняем веса сети (сохранение будет выполнено, если saveRate is not None) 
-                self.__saveEpoch( sess, saveRate, saveDir, epoch, numEpochs, cost, accuracy, finalBalance )
+                    self.trainTestRegressionPut( epoch, cost, costTest, accuracy, accuracyTest, finalBalance, finalBalanceTest )
 
             print("\nDone!")
 
@@ -268,44 +226,7 @@ class Network:
         # end of with tf.Session() as sess
     # end of learn()
 
-    # Вычисляет "аутпут" (ответ, он же 'y') сети
-    # x (1d numpy array, np.float) - "инпут", размерность: numFeatures [x0,x1,...,xn]
-    # Возвращает 1d numpy array размерностью numLables (это число задается при создании сети - см. конструктор) 
-    def calcOutput( self, x ):
-        output = None
-
-        outputOp = self.__createNetworkOutputOp()
-        
-        with tf.Session() as sess:
-
-            sess.run( tf.global_variables_initializer() )
-            output = sess.run( outputOp, feed_dict = { self.x: [x] } )
-
-        return output
-    # end of def
-
-    def __createNetworkOutputOp( self ):
-        inputMatrix = self.x
-        for i in range( self.numLayers ):
-            # Вычисление (активация) hidden-слоя
-            inputMatrix = tf.add( tf.matmul( inputMatrix, self.weights[i] ), self.bs[i] )
-            if self.activationFuncs is None: # Если функция активации не задана, используем relu
-                inputMatrix = tf.nn.relu( inputMatrix )
-            else:
-                activationFunc = getActivationFunc( self.activationFuncs, i ) 
-                inputMatrix = activationFunc( inputMatrix )
-
-        # Операция для вычисления "выхода" сети
-        outputMatrix = tf.add( tf.matmul( inputMatrix, self.weights[self.numLayers] ), self.bs[self.numLayers] )
-        if self.activationFuncs is None: 
-            outputOp = tf.nn.softmax( outputMatrix )
-        else:
-            activationFunc = getActivationFunc( self.activationFuncs, numLayers, outputLayer=True ) 
-            outputOp = activationFunc( outputMatrix )
-        return outputOp
-    # end of def
-
-    def __trainTestRegressionInit( self, numEpochs ):
+    def trainTestRegressionInit( self, numEpochs ):
         self.costRegTrain = np.zeros( shape=[numEpochs], dtype=np.float32)  
         self.costRegTest = np.zeros( shape=[numEpochs], dtype=np.float32 )  
         self.accuracyRegTrain = np.zeros( shape=[numEpochs], dtype=np.float32 )  
@@ -314,7 +235,7 @@ class Network:
         self.balanceRegTest = np.zeros( shape=[numEpochs], dtype=np.float32 )  
     # end of def
 
-    def __trainTestRegressionPut( self, epoch, costTrain, costTest, accuracyTrain, accuracyTest, balanceTrain, balanceTest ):
+    def trainTestRegressionPut( self, epoch, costTrain, costTest, accuracyTrain, accuracyTest, balanceTrain, balanceTest ):
         self.costRegTrain[epoch] = costTrain
         self.costRegTest[epoch] = costTest
         self.accuracyRegTrain[epoch] = accuracyTrain
@@ -323,56 +244,15 @@ class Network:
         self.balanceRegTest[epoch] = balanceTest
     # end of def
 
-    def __saveEpoch( self, sess, saveRate, saveDir, epoch, numEpochs, cost, accuracy, finalBalance ):
-        ok = True
-        if saveRate is not None:
-            if epoch % saveRate == 0 or epoch == numEpochs-1:
-                if saveDir is None:
-                    saveDir = self.learnTime
-                if not os.path.exists( saveDir ):
-                    try:
-                        os.mkdir( saveDir )
-                    except Exception:
-                        ok = False
-                if ok:
-                    fileName = "%d_c_%.4g_a_%.4g_p_%.4g" % ( epoch, cost, accuracy, finalBalance ) 
-                    path = os.path.join( saveDir, fileName ) 
-                    ok = self.__save( sess, path )
-        return ok                 
-    #end of def
-
-    def __printEpochLog( self, printRate, epochNum, epochLog ):
-        if printRate is not None:
-            if epochNum % printRate == 0:
+    def printEpochLog( self, epochNum, epochLog ):
+        if self.printRate is not None:
+            if epochNum % self.printRate == 0:
                 print epochLog
-    # end of def
-
-    # Сохраняет веса сети в файл fileName.
-    # Возвращает True в случае успеха и False в случае ошибки.  
-    def __save( self, sess, fileName ):
-        ok = True
-        try:
-            s = shelve.open( fileName )
-        except Exception:
-            ok = False
-
-        if ok:
-            try:
-                s['weights'] = sess.run( self.weights )
-                s['bs'] = sess.run( self.bs )
-                s['activationFuncs'] = self.activationFuncs
-            except Exception:
-                ok = False
-            finally:
-                s.close()
-
-        return ok       
     # end of def
 
 # end of class
 
-# Принимает кодовую строку, обозначающую оптимизатор
-# Возвращает callable-переменную - оптимизатор
+
 def getOptimizer( optimizer ):
     if type( optimizer ) is str: # Оптимизатор задан строкой
         if optimizer == 'GradientDescent': 
@@ -403,8 +283,6 @@ def getOptimizer( optimizer ):
         return None
 # end of def 
 
-# Принимает кодовую строку, обозначающую функцию активации
-# Возвращает callable-переменную - функцию активации
 def getActivationFunc( activationFuncs, index, outputLayer=False ):
     if index >= len( activationFuncs ):
         if outputLayer == False:
@@ -427,3 +305,4 @@ def getActivationFunc( activationFuncs, index, outputLayer=False ):
     else:
         return None
 # end of def
+

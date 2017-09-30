@@ -1,6 +1,7 @@
 MANIFEST.in
 README.rst
 setup.cfg
+setup.py
 tnn/__init__.py
 tnn.egg-info/PKG-INFO
 tnn.egg-info/SOURCES.txt
