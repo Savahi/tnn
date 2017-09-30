@@ -15,8 +15,8 @@ class Network:
     numLabels  - (integer, default:2) Размерность "аутпутов" (y, они же "labels") заданных в формате "one-hot"
     stdDev - (float) Стандартное отклонение для первичной генерации весов сети, default: 0.03 
     '''
-    def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03 ):
-        self.numLayers = numLayers # (integer) Число hidden-слоев
+    def __init__(self, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03 ):
+        self.numLayers = len(numNodes) # (integer) Число hidden-слоев
         self.numNodes = numNodes # (list of integers) Число узлов в каждом слое, numNodes[0] - число слоев в первом hidden-слое 
         self.numFeatures = numFeatures # (integer) Число features, т.е. размерность "инпутов" (x0,x1,x2,...,xn).
         self.numLabels = numLabels # One-hot labels
