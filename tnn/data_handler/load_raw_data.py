@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy  as np
+import random
 import shelve
 from data_handler_tim.indicators import indicator, indicators
 
@@ -14,12 +15,12 @@ class InputsShape():
                 return len(self.indicators) * self.history
 
 
-
 class RawData():
 	def __init__(self, filename):
 		# check if file exists
-		self.df = pd.read_csv(filename).iloc[::-1]
+		self.df = pd.read_csv(filename).iloc[::-1] # from present to past
 		self.raw_inputs = None
+		self.outputs = None
 		self.normalized_inputs = None
 		self.inputs_shape = None
 		# load it in the dataframe
@@ -27,13 +28,18 @@ class RawData():
 	def form_inputs(self, inputs_shape):
 		self.inputs_shape = inputs_shape
 		inputs = []
+		outputs= [] # hardcoded for now to predict the <OPEN> price 1 candle forward...
 		print ("Processing raw data file...")
-		for i in range(len(self.df)-max(inputs_shape.history, inputs_shape.num_cand_inds)-10): #weird Nones
+		for i in range(1, len(self.df)-max(inputs_shape.history, inputs_shape.num_cand_inds)-10): #weird Nones
 			inp = []
 			for k in range(inputs_shape.history):
 				inp += ([ indicator(x) (self.df[i+k:], inputs_shape.num_cand_inds) for x in inputs_shape.indicators ])
 			inputs.append(inp)
+			output = self.df["<OPEN>"][i-1] - self.df["<OPEN>"][i]
+			output = [1,0] if output<0 else [0,1]
+			outputs.append(output)
 		self.raw_inputs = inputs
+		self.outputs = outputs
 		return inputs
 
 	def normalize_inputs(self, norm=None, std=None):
@@ -52,5 +58,17 @@ class RawData():
 		db = shelve.open(filename)
 		db["raw_inputs"]   = self.raw_inputs	
 		db["normalized_inputs"] = self.normalized_inputs
+		db["outputs"] = self.outputs
 		db.close()
 		print ("Dumped to file")
+
+
+def example_data():
+	import random
+	inp = InputsShape(["<OPEN>", "<CLOSE>"], 6, 6)
+	rd = RawData("~/python_repo/raw_data/15/RTS_170619_170808.csv")
+	rd.form_inputs(example)
+	inputs = rd.normalize_inputs()
+	observed = rd.outputs
+	profits = []
+	return inputs,observed,profits
