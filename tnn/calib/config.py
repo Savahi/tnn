@@ -11,6 +11,7 @@ params = {
 		"bins": 2,
 		"activationFuncs": ["sigmoid","sigmoid","sigmoid"],
 	},
+
 	
 	# Параметры обучения
 	"learningRate":0.05,
