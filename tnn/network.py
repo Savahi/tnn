@@ -211,7 +211,7 @@ class Network:
             accuracySumm = tf.summary.scalar( 'Accuracy (Train)', accuracyOp )
             costSumm = tf.summary.scalar( 'Cost (Train)', costOp )
             if profit is not None:
-                balanceSumm = tf.summary,scalar( 'Profit (Train)', finalBalanceOp )
+                balanceSumm = tf.summary.scalar( 'Profit (Train)', finalBalanceOp )
             if xTest is not None and yTest is not None:
                 accuracyTestSumm = tf.summary.scalar( 'Accuracy (Test)', accuracyOp )
                 costTestSumm = tf.summary.scalar( 'Cost (Test)', costOp )
