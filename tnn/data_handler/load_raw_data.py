@@ -1,8 +1,9 @@
+# -*- coding: utf-8 -*- 
 import pandas as pd
 import numpy  as np
 import random
 import shelve
-from data_handler_tim.indicators import indicator, indicators
+from tnn.data_handler.indicators import indicator, indicators
 
 
 class InputsShape():
@@ -65,10 +66,10 @@ class RawData():
 
 def example_data():
 	import random
-	inp = InputsShape(["<OPEN>", "<CLOSE>"], 6, 6)
-	rd = RawData("~/python_repo/raw_data/15/RTS_170619_170808.csv")
-	rd.form_inputs(example)
+	inp = InputsShape(["<OPEN>", "<CLOSE>"], 15, 6)
+	rd = RawData("~/RTS_160601_170726.csv+5")
+	rd.form_inputs(inp)
 	inputs = rd.normalize_inputs()
 	observed = rd.outputs
-	profits = []
+	profits = [random.randint(1,500) for _ in range(len(inputs))]
 	return inputs,observed,profits

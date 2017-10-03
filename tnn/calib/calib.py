@@ -1,7 +1,8 @@
+# -*- coding: utf-8 -*- 
 import importlib
 
 from tnn.network import Network
-from data_handler.load_raw_data import *
+from tnn.data_handler.load_raw_data import *
 
 
 def split(data,rate=0.7):
@@ -10,30 +11,31 @@ def split(data,rate=0.7):
 	test  = data[index:]
 	return train, test
 
-def calib (configfile)
-	config = importlib.import_module("calib."+configfile)
-	config = config.config
+def calib (configfile):
+	config = importlib.import_module("tnn.calib."+configfile)
+	config = config.params
 
 	netw = Network(
-		num_nodes = config["network"]["nodes"],
-		num_layers= len(config["network"]["nodes"]),
-		num_features= config["network"]["num_inputs"],
+		numNodes = config["network"]["nodes"],
+		numLayers= len(config["network"]["nodes"]),
+		numFeatures= config["network"]["num_inputs"],
 		numLabels=config["network"]["bins"],
+		activationFuncs=config["network"]["activationFuncs"],
 	)
 
-	x,y,profit = [],[],[] # а вот сюда, Савелий, пойдет функция генерации инпутов
-	assert (len(x) == len(y) and len(y) == len(profit))
+	x,y,profit = example_data() # а вот сюда, Савелий, пойдет функция генерации инпутов
+	#assert (len(x) == len(y) and len(y) == len(profit))
 
 	xtrain,xtest = split(x)
 	ytrain,ytest = split(y)
-	ptrain,ptest = None, None #split(profit)
-
+	ptrain,ptest = split(profit)
 	netw.learn(xtrain, ytrain, profit=ptrain, xTest=xtest, yTest=ytest, profitTest=ptest,
 		   learningRate=config["learningRate"], 
 		   numEpochs=config["numEpochs"], 	
-		   activationFuncs=config["activationFuncs"]
 		   optimizer=config["optimizer"],
         	   summaryDir=config["summaryDir"], 
-		   printRate=config["printRate"],
 		   trainTestRegression=config["trainTestRegression"])		
 	
+
+if __name__=="__main__":
+	calib("config")

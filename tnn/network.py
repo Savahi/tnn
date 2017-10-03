@@ -208,7 +208,7 @@ class Network:
 
         # Для summary
         if summaryDir is not None:
-            accuracySumm = tf.summary.scalar( 'Точность (Train)', accuracyOp )
+            accuracySumm = tf.summary.scalar( 'Accuracy (Train)', accuracyOp )
             costSumm = tf.summary.scalar( 'Cost (Train)', costOp )
             if profit is not None:
                 balanceSumm = tf.summary,scalar( 'Profit (Train)', finalBalanceOp )
@@ -337,7 +337,7 @@ class Network:
         if self.activationFuncs is None: 
             outputOp = tf.nn.softmax( outputMatrix )
         else:
-            activationFunc = getActivationFunc( self.activationFuncs, numLayers, outputLayer=True ) 
+            activationFunc = getActivationFunc( self.activationFuncs, self.numLayers, outputLayer=True ) 
             outputOp = activationFunc( outputMatrix )
         return outputOp
     # end of def
