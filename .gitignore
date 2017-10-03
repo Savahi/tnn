@@ -7,3 +7,4 @@ dist/
 # Python egg metadata, regenerated from source files by setuptools.
 taft.egg-info/
 
+20*_summary

@@ -18,13 +18,11 @@ class InputsShape():
 
 class RawData():
 	def __init__(self, filename):
-		# check if file exists
 		self.df = pd.read_csv(filename).iloc[::-1] # from present to past
 		self.raw_inputs = None
 		self.outputs = None
 		self.normalized_inputs = None
 		self.inputs_shape = None
-		# load it in the dataframe
 
 	def form_inputs(self, inputs_shape):
 		self.inputs_shape = inputs_shape
