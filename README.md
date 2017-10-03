@@ -36,7 +36,7 @@ def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdD
 Learns the network. / Обучает сеть
 ~~~
 def learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-    learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, predictionProb=None, 
+    learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, prognoseProb=None, 
     summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None )
 ~~~
     x (2d numpy array, np.float64) - "инпуты" (samples) для обучения сети, размерность numSamples x numFeatures -> в placeholder self.x
@@ -51,13 +51,13 @@ def learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None,
     numEpochs (int, defaul:1000) - self explained
     balancer (float, default:0.0) - если balancer > 0.0, то при вычислении cost-функции совпадение/несовпадение по последнему 
         бину получит весовой коэффициент (balancer+1.0), в то время как по остальным бинам коэффициент будет 1.0.
-    optimizer (string или func, default:None) - способ оптимизации. Если "None", то используется GradientDescentOptimizer. 
-        Если не "None", то способ оптимизации может быть задан:
-            1) строкой ("GradientDescent", "Adadelta" и т.д.)
-            2) напрямую, например: tf.train.GradientDescentOptimizer 
-    predictionProb (float, default:None) - пороговое значение оценки вероятности.
+    optimizer (string или func, default:None) - способ оптимизации. Если optimizer=None, то используется GradientDescentOptimizer. 
+        Если optimizer is not None, то способ оптимизации может быть задан:
+            1) строкой (возможные варианты: "GradientDescent", "Adadelta", "Adagrad", "Adam", "Ftrl", "RMSProp" и т.д.)
+            2) напрямую объектом, например: tf.train.GradientDescentOptimizer(learning_rate=0.01) 
+    prognoseProb (float, default:None) - пороговое значение оценки вероятности.
         При превышении этого значения "аутпутом" (y) в последнем ("торгующем") бине мы считаем, что сеть дает сигнал на сделку. 
-        Если predictionProb==None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
+        Если prognoseProb==None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
         чем значения в остальных бинах. 
     summaryDir (string, default:None) - папка, куда tensorflow пишет summary ("отчет"). 
         Если summaryDir==None, отчеты записываться не будут.
