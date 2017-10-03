@@ -5,40 +5,6 @@ import datetime as dt
 import shelve
 import os
 
-# Загружает веса сети из файла fileName.
-# Возвращает объект Network в случае успеха и None в случае ошибки.  
-def loadNetwork( fileName ):
-    ok = True 
-
-    try:
-        s = shelve.open( fileName, flag='r' )
-    except Exception:
-        ok = False
-
-    if ok:
-        try:
-            weights = s['weights']
-            bs = s['bs']
-            activationFuncs = s['activationFuncs']
-        except Exception:
-            ok = True
-        finally:
-            s.close()
-
-    if ok:
-        numLayers = len( weights ) - 1
-        numFeatures = np.shape(weights[0])[0]
-        numNodes = [] 
-        for i in range( numLayers ):
-            numNodes.append( np.shape( weights[i])[1] )
-        numLabels = np.shape( weights[numLayers])[1]
-        network = Network( numLayers, numNodes, numFeatures, numLabels, activationFuncs=activationFuncs, weights=weights, bs=bs )
-        return network
-
-    return None
-# end of loadNetwork()
-
-
 class Network:
     # Общее число сетей
     numNetworks = 0
