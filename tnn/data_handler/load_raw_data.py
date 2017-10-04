@@ -15,7 +15,6 @@ class InputsShape():
         def num_inputs(self):
                 return len(self.indicators) * self.history
 
-
 class RawData():
 	def __init__(self, filename):
 		self.df = pd.read_csv(filename).iloc[::-1] # from present to past

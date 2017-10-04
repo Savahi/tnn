@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 import importlib
 
+from tnn.io import prepareData
 from tnn.network import Network
 from tnn.data_handler.load_raw_data import *
 
@@ -23,12 +24,13 @@ def calib (configfile):
 		activationFuncs=config["network"]["activationFuncs"],
 	)
 
-	x,y,profit = example_data() # а вот сюда, Савелий, пойдет функция генерации инпутов
-	#assert (len(x) == len(y) and len(y) == len(profit))
+	x,y,profit = prepareData(
+		fileWithRates=config["raw_file"],
+		calcInputs=config["calcInputs"], calcLabels=config["calcLabels"])
 
 	xtrain,xtest = split(x)
 	ytrain,ytest = split(y)
-	ptrain,ptest = split(profit)
+	ptrain,ptest = split(profit) if profit else (None,None)
 	netw.learn(xtrain, ytrain, profit=ptrain, xTest=xtest, yTest=ytest, profitTest=ptest,
 		   learningRate=config["learningRate"], 
 		   numEpochs=config["numEpochs"], 	
