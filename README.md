@@ -11,7 +11,9 @@ Functions
 ### Network ###
 The constructor creates a Network object. / Конструктор, создает объект Network.
 ~~~
-def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None ):
+from tnn.network import Network
+
+nn = Network(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
 ~~~
     numLayers (integer, default:1) - Число hidden-слоев сети
     numNodes (list of integers, default:[10]) - Число узлов в каждом слое
@@ -35,9 +37,11 @@ def __init__(self, numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdD
 ### learn ###
 Learns the network. / Обучает сеть
 ~~~
-def learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-    learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, prognoseProb=None, 
-    summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None )
+from tnn.network import learn
+
+learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
+learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, prognoseProb=None, 
+summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None )
 ~~~
     x (2d numpy array, np.float64) - "инпуты" (samples) для обучения сети, размерность numSamples x numFeatures -> в placeholder self.x
     y (2d numpy array, np.float64) - "аутпуты" (labels) для обучения сети, размерность numSamples x numLabels -> в placeholder self.y
@@ -87,7 +91,9 @@ def learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None,
 ### calcOutput ###
 Calculates the output of the Network. / Вычисляет "аутпут" (ответ) сети
 ~~~
-    def calcOutput( self, x )
+from tnn.network import calcOutput
+
+calcOutput( x )
 ~~~
     x (1d numpy array, np.float) - "инпут", размерность: numFeatures [x0,x1,...,xn] (это число задается при создании сети - см. конструктор)
 
@@ -99,7 +105,9 @@ Calculates the output of the Network. / Вычисляет "аутпут" (от�
 ### loadNetwork ###
 Loads network from file 'fileName'. / Загружает сеть из файла 'fileName'.
 ~~~
-def loadNetwork( fileName ):
+from tnn.io import loadNetwork
+
+loadNetwork( fileName )
 ~~~
     fileName (string) - Файл, в котором хранятся веса и функции активации сети.
         Файл должен был быть предварительно сохранен в процессе обучения сети, для чего
@@ -111,7 +119,9 @@ def loadNetwork( fileName ):
 ### prepareData ###
 Prepares data for network training and testing. / Готовит данные для обучения и тестирования сети.
 ~~~
-def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcInputs=None, calcLabels=None ):
+from tnn.io import prepareData
+
+prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcInputs=None, calcLabels=None )
 ~~~
     fileWithRates (string) - файл с котировками в формате finam. 
         Если указать fileWithRates==None, котировки можно передать через параметр "rates" (см. ниже).
@@ -144,8 +154,9 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
         список "аутпутов" в формате "one-hot" (один элемент равен "1", остальные "0") и 
 	float переменную, которая хранит доходность сделки в данной точке временного ряда, например:
             return [0.2234, 0.43234,..., 0.9934], [0,0,1], 525.2
-        Если аутпуты подсчитать не удается, функция должна вернуть None, None, None.
-	[Пример реализации встроенной функции calcData см. здесь](samples/calcData.py)
+        Если аутпуты подсчитать не удается, функция должна вернуть "None, None, None".
+
+[Пример реализации встроенной функции calcData см. здесь](samples/calcData.py)
  
 	Функция prepareData возвращает две переменные-словари: trainData и testData. 
         Если detachTest==None, testData будет равен "None".
@@ -158,7 +169,6 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
 ## data_handler.InputsShape
 
 A container class for a schema used to generate network inputs from raw data
-
 
 ~~~
 def __init__(self, indicators, history, num_cand_inds):
