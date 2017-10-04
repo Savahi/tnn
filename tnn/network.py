@@ -194,9 +194,17 @@ class Network:
             # Инициализируем переменные
             sess.run( tf.global_variables_initializer() )
 
-            # Исходные данные: для обучения (train) и тестирования (test)  
-            feedDict = { self.x: x, self.y: y, profitBySamples: profit }
-            feedDictTest = { self.x: xTest, self.y: yTest, profitBySamples: profitTest }
+            # Исходные данные: для обучения (train) и тестирования (test) 
+            if profit is None:
+                profitFeed = []
+            else:
+                profitFeed = profit 
+            feedDict = { self.x: x, self.y: y, profitBySamples: profitFeed }
+            if profitTest is None:
+                profitFeed = []
+            else:
+                profitFeed = profitTest 
+            feedDictTest = { self.x: xTest, self.y: yTest, profitBySamples: profitFeed }
 
             # Если указано считать регрессионную зависимость между показателями сети на train и test, 
             # инициализируем массивы для хранения соответствующих данных
