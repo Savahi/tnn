@@ -13,6 +13,12 @@ params = {
 	},
 
 	
+	"raw_file":"~\Documents\RTS_160601_170726.csv+5"
+
+	# Функции формирования данных; None=поведение по умолчанию
+	"calcInputs": None,
+	"calcLabels": None,
+
 	# Параметры обучения
 	"learningRate":0.05,
 	"numEpochs":1000,
