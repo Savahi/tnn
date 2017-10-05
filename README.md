@@ -10,10 +10,11 @@ Functions
 
 ### Network ###
 The constructor creates a Network object. / Конструктор, создает объект Network.
+Модуль: tnn.network (для использования небходимо: from tnn.network import Network).
 ~~~
 from tnn.network import Network
 
-nn = Network(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
+*Network*(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
 ~~~
     numLayers (integer, default:1) - Число hidden-слоев сети
     numNodes (list of integers, default:[10]) - Число узлов в каждом слое
@@ -35,12 +36,11 @@ nn = Network(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.0
 [See the sample code here / Пример кода см. здесь](samples/sample.py) 
 
 ### learn ###
-Learns the network. / Обучает сеть
+The method of the Network object. Provides the whole cycle of network learning. / Метод объекта Network. Обучает сеть.
+Модуль: tnn.network (для использования небходимо: from tnn.network import learn).
 ~~~
-from tnn.network import learn
-
-learn( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, prognoseProb=None, 
+*learn*( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
+learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, tradingLabel=None, prognoseProb=None, 
 summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None )
 ~~~
     x (2d numpy array, np.float64) - "инпуты" (samples) для обучения сети, размерность numSamples x numFeatures -> в placeholder self.x
@@ -53,12 +53,18 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
         размерность: numSamples (как у xTest и yTest по оси 0)
     learningRate (float, default:0.05) - self explained 
     numEpochs (int, defaul:1000) - self explained
-    balancer (float, default:0.0) - если balancer > 0.0, то при вычислении cost-функции совпадение/несовпадение по последнему 
-        бину получит весовой коэффициент (balancer+1.0), в то время как по остальным бинам коэффициент будет 1.0.
+    balancer (float, default:0.0) - Если balancer > 0.0, то при вычислении cost-функции совпадение/несовпадение 
+        по "ТОРГОВОМУ" бину (см. параметр tradingLabel) получит весовой коэффициент (1.0+balancer), 
+        в то время как по остальным бинам коэффициент будет 1.0.
+	Если balancer == 0.0, при рассчете cost-функции совпадения/несовпадения по всем бинам учитываются одинаково.
     optimizer (string или func, default:None) - способ оптимизации. Если optimizer=None, то используется GradientDescentOptimizer. 
         Если optimizer is not None, то способ оптимизации может быть задан:
             1) строкой (возможные варианты: "GradientDescent", "Adadelta", "Adagrad", "Adam", "Ftrl", "RMSProp" и т.д.)
-            2) напрямую объектом, например: tf.train.GradientDescentOptimizer(learning_rate=0.01) 
+            2) напрямую объектом, например: tf.train.GradientDescentOptimizer(learning_rate=0.01)
+    tradingLabel (int, default:None) - Указывает, функции какой бин (label) является т.н. "торговым" 
+        (по которому сеть дает сигнал на сделку). 
+        Используется при подсчете доходности, а также при рассчете cost-функции (см. параметр balancer). 
+        Если tradingLabel is None, по умолчанию считается, что "торговый" бин последний.
     prognoseProb (float, default:None) - пороговое значение оценки вероятности.
         При превышении этого значения "аутпутом" (y) в последнем ("торгующем") бине мы считаем, что сеть дает сигнал на сделку. 
         Если prognoseProb==None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
@@ -90,10 +96,9 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
 	
 ### calcOutput ###
 Calculates the output of the Network. / Вычисляет "аутпут" (ответ) сети
+Модуль: tnn.network (для использования необходимо: from tnn.network import calcOutput).
 ~~~
-from tnn.network import calcOutput
-
-calcOutput( x )
+*calcOutput*( x )
 ~~~
     x (1d numpy array, np.float) - "инпут", размерность: numFeatures [x0,x1,...,xn] (это число задается при создании сети - см. конструктор)
 
@@ -104,10 +109,9 @@ calcOutput( x )
 
 ### loadNetwork ###
 Loads network from file 'fileName'. / Загружает сеть из файла 'fileName'.
+Модуль: tnn.io (для использования необходимо: from tnn.io import loadNetwork).
 ~~~
-from tnn.io import loadNetwork
-
-loadNetwork( fileName )
+*loadNetwork*( fileName )
 ~~~
     fileName (string) - Файл, в котором хранятся веса и функции активации сети.
         Файл должен был быть предварительно сохранен в процессе обучения сети, для чего
@@ -118,10 +122,12 @@ loadNetwork( fileName )
 
 ### prepareData ###
 Prepares data for network training and testing. / Готовит данные для обучения и тестирования сети.
+Модуль: tnn.io (для использования необходимо: from tnn.io import prepareData) 
 ~~~
-from tnn.io import prepareData
+*prepareData*( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcInputs=None, calcLabels=None )
 
-prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcInputs=None, calcLabels=None )
+Пример:
+	trainData, testData = prepareData( "RTS_1D.csv", detachTest=20 )
 ~~~
     fileWithRates (string) - файл с котировками в формате finam. 
         Если указать fileWithRates==None, котировки можно передать через параметр "rates" (см. ниже).

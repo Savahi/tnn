@@ -113,7 +113,7 @@ class Network:
         Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
     '''
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, prognoseProb=None, 
+        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, tradingLabel=None, prognoseProb=None, 
         summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None ):
 
         # Время запуска сеанса обучения в виде текстовой строки. Будет использоваться для создания папок с отчетами 
@@ -125,18 +125,28 @@ class Network:
         # Все значения меньше 1e-10 превращаем в 1e-10, все значения больше 0.99999999 превращаем в 0.99999999: 
         yClippedOp = tf.clip_by_value( yOp, 1e-10, 0.99999999 )
 
+        tradingUtmost = False
+        if tradingLabel is None:
+            tradingLabel = self.numLabels-1
+        elif isinstance( tradingLabel, str ):
+            if tradingLabel == 'utmost':
+                tradingUtmost = True
+
         # Операция возвращает 1-мерный массив длиной numSamples: 
-        # '1.0', если для данного набора "инпутов" был предсказан последний бин (т.е. сигнал на сделку) и '0', если нет
+        # '1.0', если для данного набора "инпутов" был предсказан "торговый" бин (т.е. сигнал на сделку) и '0', если нет
         if prognoseProb is None:
-            isProfitableTradePrognosedOp = tf.equal( tf.argmax( yOp,1 ), self.numLabels-1 )
+            isProfitableTradePrognosedOp = tf.equal( tf.argmax( yOp,1 ), tradingLabel )
         else:
-            isProfitableTradePrognosedOp = tf.greater( yOp[:,self.numLabels-1], prognoseProb )
+            isProfitableTradePrognosedOp = tf.greater( yOp[:,tradingLabel], prognoseProb )
         profitableTradePrognosedOp = tf.cast( isProfitableTradePrognosedOp, tf.float64 )
 
         # Cost-функция.
-        if balancer > 0.0: # Если задана переменна balancer - cost-функция будет учитывать последний бин с бОльшим весом
-            balancerOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ], dtype=tf.float64 )
-            balancerOp = tf.concat( [ balancerOp, tf.reshape( profitableTradePrognosedOp*balancer, [tf.shape(self.y)[0],1] ) ], 1 ) + 1.0
+        if balancer > 0.0: # Если переменная balancer > 0.0 - cost-функция будет учитывать "торговый" бин с бОльшим весом
+            balancerZerosOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ], dtype=tf.float64 )
+            if tradingLabel == self.numLabels-1:
+                balancerOp = tf.concat( [ balancerZerosOp, tf.reshape( profitableTradePrognosedOp*balancer, [tf.shape(self.y)[0],1] ) ], 1 ) + 1.0
+            else:
+                balancerOp = tf.concat( [ tf.reshape( profitableTradePrognosedOp*balancer, [tf.shape(self.y)[0],1] ), balancerZerosOp ], 1 ) + 1.0
             costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
         else: 
             costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) + (1.0 - self.y) * tf.log(1.0 - yClippedOp), axis=1 ) )
@@ -167,8 +177,8 @@ class Network:
         tradeAccuracyOp = tf.reduce_mean( self.numLabels -
             tradePredictionErrorOp * (isTradePredictedOp*tradeAccuracyCoeff+1.0) * (isTradeOccuredOp*(tradeAccuracyCoeff/2.0)+1.0) )
         '''
-        # Вычисление "торговой" точности - учитываются ТОЛЬКО предсказания по последнему бину 
-        isProfitableTradeOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) )
+        # Вычисление "торговой" точности - учитываются ТОЛЬКО предсказания по "торговому" бину 
+        isProfitableTradeOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(tradingLabel, tf.int64) )
         isProfitableTradePrognosedAndOccuredOp = tf.logical_and( isProfitableTradePrognosedOp, isProfitableTradeOccuredOp )
         tradeAccuracyOp = ( tf.reduce_sum( tf.cast( isProfitableTradePrognosedAndOccuredOp, tf.float64 ) ) + 1e-10 ) / ( tf.reduce_sum( profitableTradePrognosedOp ) + 1e-10 )
 
