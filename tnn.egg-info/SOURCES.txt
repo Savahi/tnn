@@ -3,6 +3,8 @@ README.rst
 setup.cfg
 setup.py
 tnn/__init__.py
+tnn/io.py
+tnn/network.py
 tnn.egg-info/PKG-INFO
 tnn.egg-info/SOURCES.txt
 tnn.egg-info/dependency_links.txt

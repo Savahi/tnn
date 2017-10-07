@@ -1,11 +1,12 @@
 Metadata-Version: 1.1
 Name: tnn
-Version: 0.0.1
+Version: 0.0.2
 Summary: Tensorflow Neural Network Framework for Algorithmic Traders
 Home-page: http://github.com/Savahi/tnn
 Author: Savahi
 Author-email: sh@tradingene.ru
 License: MIT
+Description-Content-Type: UNKNOWN
 Description: UNKNOWN
 Keywords: neural network tensorflow algorithmic trading stock exchange
 Platform: UNKNOWN

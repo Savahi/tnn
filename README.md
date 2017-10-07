@@ -12,8 +12,6 @@ Functions
 The constructor creates a Network object. / Конструктор, создает объект Network.
 Модуль: tnn.network (для использования небходимо: from tnn.network import Network).
 ~~~
-from tnn.network import Network
-
 *Network*(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
 ~~~
     numLayers (integer, default:1) - Число hidden-слоев сети
@@ -37,9 +35,9 @@ from tnn.network import Network
 
 ### learn ###
 The method of the Network object. Provides the whole cycle of network learning. / Метод объекта Network. Обучает сеть.
-Модуль: tnn.network (для использования небходимо: from tnn.network import learn).
+Модуль: tnn.network (для использования необходимо: from tnn.network import Network).
 ~~~
-*learn*( x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
+*learn*( x, y, profit=None, xTest=None, yTest=None, profitTest=None, shortTradesHaveNegativeProfit=True, 
 learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, tradingLabel=None, prognoseProb=None, 
 summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir=None )
 ~~~
@@ -51,6 +49,9 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
     yTest (2d numpy array, np.float64, default:None) - "аутпуты" (labels) для тестирования сети, размерность: numSamples x numLabels
     profitTest (1d numpy array, np.float64, default: None) - значения прибыли (убытка) по каждому sample, 
         размерность: numSamples (как у xTest и yTest по оси 0)
+    shortTradesHaveNegativeProfit (boolean, default:True) - указывает на знак величин в массивах profit и profitTest.
+        Если True, то прибыль по сделкам SHORT должна быть задана в этих массивах отрицательным числом, а 
+        если False - то положительным.
     learningRate (float, default:0.05) - self explained 
     numEpochs (int, defaul:1000) - self explained
     balancer (float, default:0.0) - Если balancer > 0.0, то при вычислении cost-функции совпадение/несовпадение 
@@ -65,6 +66,9 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
         (по которому сеть дает сигнал на сделку). 
         Используется при подсчете доходности, а также при рассчете cost-функции (см. параметр balancer). 
         Если tradingLabel is None, по умолчанию считается, что "торговый" бин последний.
+    flipOverTrading (boolean, default:False) - Если flipOverTrading==True, моделируется торговля 0-м (SHORT)
+        и (numLabels-1)-м (LONG) бинами, причем позиция никогда не закрывается, а меняется на противоположную 
+        при поступлении сигналов LONG и SHORT. 
     prognoseProb (float, default:None) - пороговое значение оценки вероятности.
         При превышении этого значения "аутпутом" (y) в последнем ("торгующем") бине мы считаем, что сеть дает сигнал на сделку. 
         Если prognoseProb==None, по сигнал на сделку дается, если значение "аутпута" в последнем бине больше, 
@@ -75,10 +79,10 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
     printRate (int, default:20) - частота, с которой во время обучения на терминал выводятся параметры обучения и тестирования сети
         (значение cost-функции, точность (accuracy), баланс (если задан на входе)).
         Если printRate=="None", то вывода параметров не будет
-    trainTestRegression (boolean, default:False) - если задать True, в процессе обучения, для каждой эпохи будут записываться
+    learnIndicators (boolean, default:False) - если learnIndicators==True, в процессе обучения, для каждой эпохи будут записываться
         пары значений (для train и test данных): 
-        - cost-функция на тест vs cost-функция на train
-        - точность (accuracy) на тест vs точность (accuracy) на train
+        - cost-функция на тест vs cost-функция на train (self.costTest и self.costTrain)
+        - точность на test'е vs точность на train'е (self.accuracyTest и self.accuracyTrain)
         - доходность на тест vs доходность на train.
         По этим парам значений можно будет построить регрессионную зависимость.
     saveRate (integer, default:None) - задает как часто надо сохранять веса сети в процессе обучения.
@@ -93,10 +97,11 @@ summaryDir=None, printRate=20, trainTestRegression=False, saveRate=None, saveDir
 	Returns - Nothing. / Возвращает - ничего
 
 [See the sample code here / Пример кода см. здесь](samples/sample.py) 
+
 	
 ### calcOutput ###
 Calculates the output of the Network. / Вычисляет "аутпут" (ответ) сети
-Модуль: tnn.network (для использования необходимо: from tnn.network import calcOutput).
+Модуль: tnn.network (для использования необходимо: from tnn.network import Network).
 ~~~
 *calcOutput*( x )
 ~~~
@@ -106,6 +111,7 @@ Calculates the output of the Network. / Вычисляет "аутпут" (от�
 	Возвращает 1d numpy array размерностью numLables (число numLabels задается при создании сети - см. конструктор) 
 
 [See the sample code here / Пример кода см. здесь](samples/calcOutput.py) 
+
 
 ### loadNetwork ###
 Loads network from file 'fileName'. / Загружает сеть из файла 'fileName'.
@@ -119,6 +125,9 @@ Loads network from file 'fileName'. / Загружает сеть из файл�
         (см. функцию learn()).
  
 	Returns the Network object or 'None' if fails. / Возвращает объект Network в случае успеха и None в случае ошибки.
+
+[See the sample code here / Пример кода см. здесь](samples/calcOutput.py) 
+
 
 ### prepareData ###
 Prepares data for network training and testing. / Готовит данные для обучения и тестирования сети.
@@ -164,12 +173,24 @@ Prepares data for network training and testing. / Готовит данные д
 
 [Пример реализации встроенной функции calcData см. здесь](samples/calcData.py)
  
-	Функция prepareData возвращает две переменные-словари: trainData и testData. 
-        Если detachTest==None, testData будет равен "None".
+	Функция prepareData возвращает две переменные (обе словари): trainData и testData. 
+        Если detachTest==None, testData не создается и функция должна вернуть "None".
 	Формат обеих переменных следующий:
 		data['numSamples'] - число примеров, равное размерности массивов data['inputs'] и data['labels'] по оси 0.
 		data['numFeatures'] - число переменных, равное размерности data['inputs'] по оси 1.
 		data['numLabels'] - число "бинов" (классов), которые распознает сеть.
+		data['inputs'] - "инпуты" (numpy array, np.float64), размерность: numSamples x NumFeatures
+		data['labels'] - "аутпуты" (numpy array, np.float64), размерность: numSamples x numLabels
+		data['profit'] - доходность по потенциальным сделкам (numpy array, np.float64), размерность: numSamples
+			Примечание: для 0-го бина, соответствующего сделкам SHORT, значения доходности следует
+				делать отрицательной величиной.
+				Положительные значения доходности можно присваивать, если сеть будет "эксклюзивно" 
+				обучаться на 0-й бин (label), причем в этом случае в функцию learn надо передать 
+				параметр shortTradesHaveNegativeProfit=False.
+		data['mean'] -  среднее, вычисленное для нормализации значений (numpy array), размерность: numFeatures.
+		data['std'] - стандартное отклонение, вычисленное для нормализации значений (numpy array), размерность: numFeatures.
+
+[See the sample code here / Пример кода см. здесь](samples/sample.py) 
 
 
 ## data_handler.InputsShape

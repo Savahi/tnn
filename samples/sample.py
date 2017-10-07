@@ -2,23 +2,21 @@
 	# ...
 
 	numLayers = 1
-	numNodes1 = 36
-	numNodes2 = 36
-	numNodes3 = 36
-	numNodes4 = 36
+	numNodes = 40
 	learningRate = 0.050
 	numEpochs = 1000
-	balancer = 0.0	
 
-	x = ... # инпуты, нормализованные значения, 2d, shape = numSamples x numFeatures, [ [x0,x1,...,xn], [x0,x1,...,xn],... ]
-	numSamples, numFeatures = np.shape(x)
-	y = ... # "правильные" аутпуты (labels), в формате one-hot, 2d, shape = numSamples x numLables, н-р [ [0,0,1], [1,0,0],... , [0,1,0] ]
-	_, numLabels = np.shape( y )
-	profit = .. # доходность, 1d, length=numSamples
+	trainData, testData = prepareData( fileWithRates=fileWithRates, detachTest=20, calcData=None )
+
+	x = trainData['inputs'] # инпуты, нормализованные значения, 2d, shape = numSamples x numFeatures, [ [x0,x1,...,xn], [x0,x1,...,xn],... ]
+	numFeatures = trainData['numFeatures']
+	y = trainData['labels'] # "правильные" аутпуты (labels), в формате one-hot, 2d, shape = numSamples x numLables, н-р [ [0,0,1], [1,0,0],... , [0,1,0] ]
+	numLabels = trainData['numLabels']
+	profit = trainData['profit'] # доходность, 1d, length=numSamples
 	
-	xTest = ... # формат, как у 'x', для тестирования
-	yTest = ... # формат, как у 'y', для тестирования
-	profitTest = ... # формат, как у 'profit', для тестирования
+	xTest = testData['inputs'] # формат, как у 'x', для тестирования
+	yTest = testData['labels'] # формат, как у 'y', для тестирования
+	profitTest = testData['profit'] # формат, как у 'profit', для тестирования
 
 	# Создаем сеть
 	nn = Network( numLayers, numNodes, numFeatures, numLabels )

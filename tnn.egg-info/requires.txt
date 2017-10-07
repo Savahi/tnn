@@ -1,4 +1,6 @@
 tensorflow
 numpy
 datetime
+shelve
+os
 taft
