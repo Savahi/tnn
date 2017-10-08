@@ -23,18 +23,24 @@ The constructor creates a Network object. / Конструктор, создае
 ~~~
     numLayers (integer, default:1) - Число hidden-слоев сети
     numNodes (list of integers, default:[10]) - Число узлов в каждом слое
-    numFeatures (integer, default:10) - Размерность "инпутов" (x, они же "samples", в каждом sample присутствует numFeatures значений)
-    numLabels (integer, default:2) - Размерность "аутпутов" (y, они же "labels")
-    stdDev (float) - Стандартное отклонение для первичной генерации весов сети, default: 0.03 
-    activationFuncs (list, default:None) - функции активации, размерность numLayers+1 (число hidden-слоев + 1). 
-    Если "None", то активация hidden-слоев будет осуществляться через relu, а output-слоя - через softmax
-    Если не "None", то элемент списка может быть:
-        1) строкой: "relu", "sigmoid", "softmax"
-        2) непосредственно функцией активации
+    numFeatures (integer, default:10) - Размерность "инпутов" 
+        (x, они же "samples", в каждом sample присутствует numFeatures значений).
+    numLabels (integer, default:2) - Размерность "аутпутов" 
+        (y, они же "labels").
+    stdDev (float, default:0.03) - Стандартное отклонение для первичной генерации весов сети.  
+    activationFuncs (list, default:None) - функции активации, размерность numLayers+1 
+        (число hidden-слоев + 1). 
+        Если activationFuncs is None, то активация hidden-слоев будет осуществляться 
+        через relu, а output-слоя - через softmax.
+        Если не "None", то элемент списка может быть:
+        1) строкой: "relu", "sigmoid", "softmax";
+        2) непосредственно функцией активации.
     weights (list of 2d numpy arrays, default:None) - список, состоящий из двумерных матриц, 
-    хранящих весовые коэффициенты слоев сети. Если weights==None, весовые коэффициенты будут сгенерированы автоматически
+        хранящих весовые коэффициенты слоев сети. Если weights==None, весовые коэффициенты 
+        будут сгенерированы автоматически.
     bs (list of 1d numpy arrays, default:None) - список, состоящий из векторов, 
-    хранящих весовые bias-коэффициенты (свободные члены) сети. Если bs==None, коэффициенты будут сгенерированы автоматически
+        хранящих весовые bias-коэффициенты (свободные члены) сети. 
+        Если bs is None, коэффициенты будут сгенерированы автоматически.
 	
 	Returns (float) - the Network object. / Возвращает - объект Network
 
