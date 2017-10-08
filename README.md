@@ -6,11 +6,11 @@ version 0.0.2
 > Nothing important yet... :)
 
 ## CONTENTS / СОДЕРЖАНИЕ ##
-[Network](#Network) - The constructor / Конструктор.  
+[Network](#network) - The constructor / Конструктор.  
 [learn](#learn) - Обучение, тестирование и созранение параметров сети.  
-[calcOutput](#calcOutput) - Рассчитывает ответ сети на заданный "инпут".  
-[loadNetwork](#loadNetwork) - Загружает сеть, ранее сохраненную функцией [learn](#learn)  
-[prepareData](#prepareData) - Пересчитывает котировки в "инпуты" и "аутпуты" сети.  
+[calcOutput](#calcoutput) - Рассчитывает ответ сети на заданный "инпут".  
+[loadNetwork](#loadnetwork) - Загружает сеть, ранее сохраненную функцией [learn](#learn)  
+[prepareData](#preparedata) - Пересчитывает котировки в "инпуты" и "аутпуты" сети.  
 
 Functions
 ----------
