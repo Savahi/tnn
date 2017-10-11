@@ -1,4 +1,6 @@
 # -*- coding: utf-8 -*- 
+from tnn.data_handler.RTS_Ret_Vol_Mom_Sto_RSI_SMA_6 import calc_data
+
 params = {
 	
 	# Либо считать сеть из файла
@@ -6,22 +8,21 @@ params = {
 	
 	# Либо создать новую
 	"network": {
-		"nodes": [24,16,8],
+		"nodes": [24,16,10],
 		"num_inputs": 30,
-		"bins": 2,
+		"bins": 3,
 		"activationFuncs": ["sigmoid","sigmoid","sigmoid"],
 	},
 
 	
-	"raw_file":"~\Documents\RTS_160601_170726.csv+5"
+	"raw_file":"audnzd60.csv",
 
 	# Функции формирования данных; None=поведение по умолчанию
-	"calcInputs": None,
-	"calcLabels": None,
+	"calcData": calc_data,
 
 	# Параметры обучения
 	"learningRate":0.05,
-	"numEpochs":1000,
+	"numEpochs":10000,
 	"optimizer":'GradientDescent',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 

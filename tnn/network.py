@@ -359,7 +359,7 @@ class Network:
         if self.activationFuncs is None: 
             outputOp = tf.nn.softmax( outputMatrix )
         else:
-            activationFunc = getActivationFunc( self.activationFuncs, self.numLayers, outputLayer=True ) 
+            activationFunc = utils.getActivationFunc( self.activationFuncs, self.numLayers, outputLayer=True ) 
             outputOp = activationFunc( outputMatrix )
         return outputOp
     # end of def
