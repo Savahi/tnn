@@ -66,6 +66,7 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     lo = rates['lo']
     cl = rates['cl']
     vol = rates['vol']
+    dtm = rates['dtm']
     length = rates['length']
 
     if calcData == None:
@@ -76,11 +77,15 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     nnProfit = []
     for i in range(length-1,0,-1):
         # Inputs
-        pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:] }
-        futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1] }
+        pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:], 'dtm':dtm[i:] }
+        futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1], 'dtm':dtm[i-1::-1] }
 
-        inputs, labels, profit = calcData( pastRates, futureRates )
-        if inputs is None or labels is None:
+        res = calcData( pastRates, futureRates )
+        if isinstance( res, tuple ): # Если функция вернула tuple (как результат корректного завершени работы)
+            inputs, labels, profit = res 
+            if inputs is None or labels is None: # Удостоверимся, что главные переменные - не None
+                continue
+        else: # Функция вернула не tuple - по соглашению это может быть только None, то есть "неудача"
             continue
         nnInputs.append( inputs )
         nnLabels.append( labels )
