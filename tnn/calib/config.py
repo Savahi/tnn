@@ -22,7 +22,7 @@ params = {
 
 	# Параметры обучения
 	"learningRate":0.05,
-	"numEpochs":10000,
+	"numEpochs":3000,
 	"optimizer":'GradientDescent',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 

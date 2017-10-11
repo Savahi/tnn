@@ -186,10 +186,10 @@ class Network:
         # Оптимизатор. Если None, то используем GradientDescentOptimizer
         if optimizer is None:
             optimiserOp = tf.train.GradientDescentOptimizer( learning_rate=learningRate ).minimize( costOp )
-        elif isinstance( optimizer, object ): # Оптимизатор задан напрямую
-            optimiserOp = optimizer.minimize( costOp )
-        elif isinstance( optimizer, str ):
+        elif isinstance( optimizer, str ): # Оптимизатор задан строкой
             optimiserOp = utils.getOptimizer( optimizer, learningRate ).minimize( costOp )
+        elif isinstance( optimizer, object ):
+            optimiserOp = optimizer.minimize( costOp )
 
         # Операции для вычисления доходности ( finalBalanceOp )
         if tradingLabel == 0 and shortTradesHaveNegativeProfit == False:
