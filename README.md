@@ -142,10 +142,10 @@ Calculates the output of the Network. / Вычисляет "аутпут" (от�
     (это число задается при создании сети - см. конструктор)
 
 Returns a 1d numpy array of length 'numLabels' (the value previously passed to 
-[the constructor](#Network)).  
+[the constructor](#network)).  
 Возвращает 1d numpy array размерностью 'numLables' 
 (число numLabels задается при создании сети - см.
-[конструктор Network](#Network)) 
+[конструктор Network](#network)) 
 
 [See the sample code here / Пример кода см. здесь](samples/calcOutput.py) 
 

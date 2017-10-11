@@ -48,25 +48,31 @@ class Network:
                     numNodes0 = numFeatures
                 else: # Если не первый слой, то его размерность по оси '0' равна размерности предыдущего по оси '1'
                     numNodes0 = numNodes[i-1]
-                w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(i) )
-                b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), name='b'+str(i) )
+                w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), 
+                    name='W'+str(i), trainable=True )
+                b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), 
+                    name='b'+str(i), trainable=True )
                 self.weights.append(w)
                 self.bs.append(b)            
             # Веса (w) + bias column (b) для связи hidden-слоя и output-слоя. 
-            w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(numLayers) )
-            b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), name='b'+str(numLayers) )
+            w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), 
+                name='W'+str(numLayers), trainable=True )
+            b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), 
+                name='b'+str(numLayers), trainable=True )
             self.weights.append(w)
             self.bs.append(b)
         else: # Если веса заданы в качестве параметров функции, инициализируем ими соотетствующие tf-переменные
             for i in range( numLayers+1 ):
-                w = tf.Variable( weights[i], dtype=tf.float64, name='W'+str(i) )
-                b = tf.Variable( bs[i], dtype=tf.float64, name='b'+str(i) )
+                w = tf.Variable( weights[i], dtype=tf.float64, name='W'+str(i), trainable=True )
+                b = tf.Variable( bs[i], dtype=tf.float64, name='b'+str(i), trainable=True )
                 self.weights.append(w)
                 self.bs.append(b)
 
         self.activationFuncs = activationFuncs # Функции активации для каждого слоя
 
         self.learnDir = "" # На этапе обучения в эту переменную будет записана строка, сформированная из текущих даты и времени
+
+        self.profit = tf.placeholder( tf.float64, [ None ] ) # Доходность для рассчета прибыльности во время обучения и тестирования
 
         Network.numNetworks += 1 # Увеличиваем счетчик сетей на 1.
     # end of __init__
@@ -117,7 +123,7 @@ class Network:
         Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
     '''
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, 
+        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, numBatches=1,
         tradingLabel=None, shortTradesHaveNegativeProfit=True, flipOverTrading=False, prognoseProb=None, 
         summaryDir=None, printRate=20, learnIndicators=False, saveRate=None, saveDir=None ):
 
@@ -143,16 +149,16 @@ class Network:
             if tradingLabel == 0:
                 tradesPrognosedOp = -1.0 * tradesPrognosedOp
         else: # Если торговый бин не указан, то предполагается, что сеть торгует по первому (SHORT) и последнему (LONG) бинам 
-            if prognoseProb is None:            
+            if prognoseProb is None: 
                 isFirstLabelPrognosedOp = tf.equal( tf.argmax( yOp,1 ), 0 )
                 isLastLabelPrognosedOp = tf.equal( tf.argmax( yOp,1 ), self.numLabels-1 )
                 tradesPrognosedOp = -1.0 * tf.cast( isFirstLabelPrognosedOp, tf.float64 ) + \
                     1.0 * tf.cast( isLastLabelPrognosedOp, tf.float64 )
-            else:
+            else: # Если указана прогнозная вероятность:
                 isFirstOp = tf.greater( yOp[:,0], prognoseProb )
-                isLastOp = tf.greater( yOp[:,self.numSamples-1], prognoseProb )
-                isFirstGreaterOp = tf.greater( yOp[:,0], yOp[:,self.numSamples-1] )
-                isLastGreaterOp = tf.greater( yOp[:,self.numSamples-1], yOp[:,0] )
+                isLastOp = tf.greater( yOp[:,self.numLabels-1], prognoseProb )
+                isFirstGreaterOp = tf.greater( yOp[:,0], yOp[:,self.numLabels-1] )
+                isLastGreaterOp = tf.greater( yOp[:,self.numLabels-1], yOp[:,0] )
                 isFirstLabelPrognosedOp = tf.logical_and( isFirstOp, isFirstGreaterOp )
                 isLastLabelPrognosedOp = tf.logical_and( isLastOp, isLastGreaterOp)
                 tradesPrognosedOp = -1.0 * tf.cast( isFirstLabelPrognosedOp, tf.float64 ) + \
@@ -180,37 +186,24 @@ class Network:
         # Оптимизатор. Если None, то используем GradientDescentOptimizer
         if optimizer is None:
             optimiserOp = tf.train.GradientDescentOptimizer( learning_rate=learningRate ).minimize( costOp )
-        elif callable( optimizer ): # Оптимизатор задан напрямую
+        elif isinstance( optimizer, object ): # Оптимизатор задан напрямую
             optimiserOp = optimizer.minimize( costOp )
         elif isinstance( optimizer, str ):
             optimiserOp = utils.getOptimizer( optimizer, learningRate ).minimize( costOp )
 
         # Операции для вычисления доходности ( finalBalanceOp )
-        profitBySamples = tf.placeholder( tf.float64, [ None ] )
         if tradingLabel == 0 and shortTradesHaveNegativeProfit == False:
-            profitByTrades = tf.multiply( tf.abs(tradesPrognosedOp), profitBySamples )
+            profitByTrades = tf.multiply( tf.abs(tradesPrognosedOp), self.profit )
         elif flipOverTrading:
             flipOverTradesOp = self.__flipOverTrades( tradesPrognosedOp )
-            profitByTrades = tf.multiply( flipOverTradesOp, profitBySamples )
+            profitByTrades = tf.multiply( flipOverTradesOp, self.profit )
         else:
-            profitByTrades = tf.multiply( tradesPrognosedOp, profitBySamples )            
+            profitByTrades = tf.multiply( tradesPrognosedOp, self.profit )            
         finalBalanceOp = tf.reduce_sum( profitByTrades )  
 
         # Операции для оценки общей точности модели. Общая точность оценивается по числу совпадений предсказаний по ВСЕМ бинам
         accuracyOp = tf.reduce_mean( tf.cast( tf.equal( tf.argmax(self.y, 1), tf.argmax(yOp, 1) ), tf.float64 ) )
 
-        # Вычисление "торговой" точности - предсказания по последнему бину учитываются с бОльшим весом, нежели предсказания по другим бинам 
-        '''
-        isTradePredictedOp = tf.cast( tf.equal( tf.argmax( yOp, 1), tf.cast(self.numLabels-1, tf.int64) ), tf.float64 )
-        isTradeOccuredOp = tf.cast( tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) ), tf.float64 )
-        tradePredictionErrorOp = tf.cast( tf.abs( tf.argmax(yOp, 1) - tf.argmax(self.y, 1) ), tf.float64 )
-        if balancer == 0.0:
-            tradeAccuracyCoeff = 4.0
-        else:
-            tradeAccuracyCoeff = balancer
-        tradeAccuracyOp = tf.reduce_mean( self.numLabels -
-            tradePredictionErrorOp * (isTradePredictedOp*tradeAccuracyCoeff+1.0) * (isTradeOccuredOp*(tradeAccuracyCoeff/2.0)+1.0) )
-        '''
         # Вычисление "торговой" точности - учитываются ТОЛЬКО предсказания по "торговому(ым)" бину(ам) 
         if tradingLabel is not None:
             isTradingLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(tradingLabel, tf.int64) )
@@ -228,7 +221,7 @@ class Network:
                 ( tf.reduce_sum( tf.cast( isLastLabelPrognosedOp, tf.float64 ) ) + 1e-10 )
             tradeAccuracyOp = tf.divide( tf.add(firstLabelTradeAccuracyOp, lastLabelTradeAccuracyOp), 2.0 )
 
-        # Вычисление числа сделок
+        # Вычисление числа сделок (tradesNumOp)
         if flipOverTrading == False:
             tradesNumOp = self.__tradesNum( tradesPrognosedOp )
         else:
@@ -256,17 +249,8 @@ class Network:
             # Инициализируем переменные
             sess.run( tf.global_variables_initializer() )
 
-            # Исходные данные: для обучения (train) и тестирования (test) 
-            if profit is None:
-                profitFeed = []
-            else:
-                profitFeed = profit 
-            feedDict = { self.x: x, self.y: y, profitBySamples: profitFeed }
-            if profitTest is None:
-                profitFeed = []
-            else:
-                profitFeed = profitTest 
-            feedDictTest = { self.x: xTest, self.y: yTest, profitBySamples: profitFeed }
+            # Исходные данные: для обучения (train) и тестирования (test)
+            feedDict, feedDictTest = self.__initFeedDicts( x, y, profit, xTest, yTest, profitTest, 1, 1 ) 
 
             # Если указано считать регрессионную зависимость между показателями сети на train и test, 
             # инициализируем массивы для хранения соответствующих данных
@@ -276,9 +260,15 @@ class Network:
             # Запускаем обучение 
             for epoch in range(numEpochs):
 
-                epochLog = "" # Текстовая строка, которая бует выведена в лог
+                epochLog = "" # Текстовая строка, которая будет выведена в лог
 
-                sess.run([optimiserOp], feed_dict = feedDict ) # Запускаем операцию оптимизации сети, заданную выше
+                # numBatches = 10
+                if numBatches > 1: # Запускаем поэтапную оптимизации сети, предварительно разбив samples на "пакеты".
+                    for i in range(numBatches):
+                        feedDictBatched, _ = self.__initFeedDicts( x, y, profit, None, None, None, numBatches, i+1 )
+                        sess.run(optimiserOp, feed_dict = feedDictBatched )                    
+                else:
+                    sess.run(optimiserOp, feed_dict = feedDict ) # Запускаем операцию оптимизации сети для samples сразу
                 
                 # Вычисляем переменные - показатели функционирования сети на обучающих (train) данных: значение cost-функици, 
                 # точность прогнозов по ВСЕМ бинам (accuracy) и точность прогнозов по ПОСЛЕДНЕМУ бину (tradeAccuracy)
@@ -411,6 +401,48 @@ class Network:
                 print epochLog
     # end of def
 
+    # Инициализирует словари для операций с тензорами - train и test. 
+    # При необходимости (если numBatches > 1) выделяет из выборки подвыборку (batch). 
+    def __initFeedDicts( self, x, y, profit, xTest, yTest, profitTest, numBatches, batchNum ):
+
+        xBatched, yBatched, profitBatched = self.__getBatches( x, y, profit, batchNum, numBatches )
+        feedDict = { self.x: xBatched, self.y: yBatched, self.profit: profitBatched }
+        
+        xBatched, yBatched, profitBatched = self.__getBatches( xTest, yTest, profitTest, batchNum, numBatches )
+        feedDictTest = { self.x: xBatched, self.y: yBatched, self.profit: profitBatched }
+
+        return feedDict, feedDictTest
+
+    # Выделяет из массивов x, y и profit подвыборку (batch).
+    # Если numBatches == 1, возвращает те же самые массивы x, y и profit.
+    def __getBatches( self, x, y, profit, numBatches, batchNum ):
+        if numBatches > 1 and x is not None:
+            numSamples = np.shape(x)[0]
+            batchStart = int( (batchNum-1) * numSamples / numBatches )
+            batchEnd = int( float(batchNum) * numSamples / numBatches )
+        if x is not None:
+            if numBatches == 1:
+                xBatched = x
+            else:
+                xBatched = x[batchStart:batchEnd:]
+        else:
+            xBatched = []
+        if y is not None:
+            if numBatches == 1:
+                yBatched = y
+            else:
+                yBatched = y[batchStart:batchEnd:]
+        else:
+            yBatched = []
+        if profit is not None:
+            if numBatches == 1:
+                profitBatched = profit
+            else:                
+                profitBatched = profit[batchStart:batchEnd]
+        else:
+            profitBatched = []
+        return xBatched, yBatched, profitBatched
+
     # Сохраняет веса сети в файл fileName.
     # Возвращает True в случае успеха и False в случае ошибки.  
     def __save( self, sess, fileName ):
@@ -486,6 +518,7 @@ class Network:
         vectorPrev = _flipOverTradesOp[:-1]
         vectorNext = _flipOverTradesOp[1:]
         numTradesOp = tf.reduce_sum( tf.cast( tf.not_equal( vectorPrev, vectorNext ), tf.int32 ) )
+        numTradesOp = tf.add( numTradesOp, tf.cast( tf.not_equal( _flipOverTradesOp[0], 0 ), tf.int32 ) )
         return numTradesOp
 
 
