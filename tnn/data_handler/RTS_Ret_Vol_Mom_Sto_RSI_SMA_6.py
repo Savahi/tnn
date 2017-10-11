@@ -5,7 +5,7 @@ import sys
 
 def calc_data(pastRates, futureRates):
 	history_tail = 5
-	indicator_period = 25 # for some reason, doesn't work on smaller values TODO
+	indicator_period = 20 # for some reason, doesn't work on smaller values TODO
 	if len(pastRates['cl']) < max( history_tail, indicator_period ):
 		return None, None, None
 

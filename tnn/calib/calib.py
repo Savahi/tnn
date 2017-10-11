@@ -30,7 +30,7 @@ def calib (configfile):
 
 	nn.learn( trainData['inputs'], trainData['labels'], trainData['profit'], testData['inputs'], testData['labels'], testData['profit'], 
 		numEpochs=config["numEpochs"], balancer=0.0, learningRate=config["learningRate"], prognoseProb=None,
-		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=True, learnIndicators=True, saveRate=None )	
+		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=False, learnIndicators=True, saveRate=None )	
 
 	import matplotlib.pyplot as plt
 	titleText = "fl=%s, lr=%g, bl=%g, opt=%s, ep=%d fl=%d" % (config["raw_file"], config["learningRate"], 0, config["optimizer"], config["numEpochs"], 0)

@@ -15,14 +15,14 @@ params = {
 	},
 
 	
-	"raw_file":"audnzd60.csv",
+	"raw_file":"RTS_1h_150820_170820.txt",
 
 	# Функции формирования данных; None=поведение по умолчанию
 	"calcData": calc_data,
 
 	# Параметры обучения
 	"learningRate":0.05,
-	"numEpochs":3000,
+	"numEpochs":10000,
 	"optimizer":'GradientDescent',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 
