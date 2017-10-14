@@ -2,6 +2,7 @@
 import importlib
 
 from tnn.io import prepareData
+from tnn.calib import graph
 from tnn.network import Network
 from tnn.data_handler.load_raw_data import *
 
@@ -29,10 +30,10 @@ def calib (configfile):
         	   summaryDir=config["summaryDir"])"""
 
 	nn.learn( trainData['inputs'], trainData['labels'], trainData['profit'], testData['inputs'], testData['labels'], testData['profit'], 
-		numEpochs=config["numEpochs"], balancer=0.2, learningRate=config["learningRate"], prognoseProb=None,
-		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=False, learnIndicators=True, saveRate=None )	
+		numEpochs=config["numEpochs"], balancer=0.0, learningRate=config["learningRate"], prognoseProb=None,
+		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=False, learnIndicators=True, saveRate=20 )	
 
-	import matplotlib.pyplot as plt
+	"""import matplotlib.pyplot as plt
 	titleText = "fl=%s, lr=%g, bl=%g, opt=%s, ep=%d fl=%d" % (config["raw_file"], config["learningRate"], 0, config["optimizer"], config["numEpochs"], 0)
 	plt.figure(  )
 	plt.subplot(221)
@@ -56,8 +57,9 @@ def calib (configfile):
 	#plt.savefig( nn.learnDir + ".png", bbox_inches='tight' )
 
 	print ("Showing the plot...")
-	plt.show()
-	
+	plt.show()"""
+	graph.plot_curves(nn)	
+
 
 if __name__=="__main__":
 	calib("config")

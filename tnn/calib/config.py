@@ -2,15 +2,10 @@
 from tnn.data_handler.RTS_Ret_Vol_Mom_Sto_RSI_SMA_6 import calc_data
 
 params = {
-	
-	# Либо считать сеть из файла
-	#network = { "load": "filename.shelve" },
-	
-	# Либо создать новую
 	"network": {
-		"nodes": [36,16,10],
-		"num_inputs": 10,
-		"bins": 3,
+		"nodes": [22,16,10],
+		"num_inputs": 30,
+		"bins": 5,
 		"activationFuncs": ["sigmoid","sigmoid","sigmoid"],
 	},
 
@@ -18,12 +13,12 @@ params = {
 	"raw_file":"RTS_1h_150820_170820.txt",
 
 	# Функции формирования данных; None=поведение по умолчанию
-	"calcData": None, #calc_data,
+	"calcData": calc_data(trans_cost=10),
 
 	# Параметры обучения
 	"learningRate":0.050,
-	"numEpochs":2000,
-	"optimizer":'GradientDescent',
+	"numEpochs":1000,
+	"optimizer":'Adam', #'GradientDescent',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 
         # Если summaryDir==None, отчеты записываться не будут.
