@@ -3,12 +3,20 @@ import taft
 import numpy as np
 import sys
 
+indicators = {
+	"Return": lambda rates: ( rates['cl'][0] - rates['op'][0] ) / rates['op'][0] ,
+	"Volume": lambda rates: rates['vol'][0] ,
+	"Momentum": lambda rates: rates['cl'][0] - rates['cl'][1] ,
+	"Stochastic": lambda rates: taft.stochastic ( hi=rates['hi'], lo=rates['lo'], cl=rates['cl']) ['K'] ,
+	"RSI": lambda rates: taft.rsi (rates=rates['cl']) ['rsi'],
+	"SMA": lambda rates: taft.sma (rates=rates['cl']) ,
+}
 
-def calc_data(trans_cost=0):
+
+def calc_data(trans_cost=0, indnames=["Return","Volume","Momentum","Stochastic","RSI","SMA"], history_tail=5):
 	def _calc_data(pastRates, futureRates):
-		history_tail = 5
 		indicator_period = 20 # for some reason, doesn't work on smaller values TODO
-		if len(pastRates['cl']) < max( history_tail, indicator_period ):
+		if len(pastRates['cl']) < history_tail + indicator_period:
 			return None, None, None
 
 		ahead = 1
@@ -19,18 +27,18 @@ def calc_data(trans_cost=0):
 		def history(nback):
 			return {x:(y if nback is 0 else y[:-nback]) for x,y in pastRates.items()}
 
-		indicators = {
+		"""indicators = {
 			"ret": lambda rates: ( rates['cl'][0] - rates['op'][0] ) / rates['op'][0] ,
 			"vol": lambda rates: rates['vol'][0] ,
 			"mom": lambda rates: rates['cl'][0] - rates['cl'][1] ,
 			"sto": lambda rates: taft.stochastic ( hi=rates['hi'], lo=rates['lo'], cl=rates['cl']) ['K'] ,
 			"rsi": lambda rates: taft.rsi (rates=rates['cl']) ['rsi'],
 			"sma": lambda rates: taft.sma (rates=rates['cl']) ,
-		}
+		}"""
 
 		def single(shift):
 			rates = history(shift)
-			inputs = [indicators[f](rates) for f in sorted(indicators.keys())]
+			inputs = [indicators[f](rates) for f in (indnames)]
 			return inputs
 
 		inputs = []
