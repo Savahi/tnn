@@ -29,7 +29,7 @@ def calib (configfile):
         	   summaryDir=config["summaryDir"])"""
 
 	nn.learn( trainData['inputs'], trainData['labels'], trainData['profit'], testData['inputs'], testData['labels'], testData['profit'], 
-		numEpochs=config["numEpochs"], balancer=0.0, learningRate=config["learningRate"], prognoseProb=None,
+		numEpochs=config["numEpochs"], balancer=0.2, learningRate=config["learningRate"], prognoseProb=None,
 		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=False, learnIndicators=True, saveRate=None )	
 
 	import matplotlib.pyplot as plt

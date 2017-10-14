@@ -41,7 +41,7 @@ def calc_data(pastRates, futureRates):
 	# Вычисляем "аутпут" - отношение (CLOSE-OPEN) / (HIGH-LOW) на указанном (переменной ahead) отрезке "ближайшего будущего".
 	# Каждое значения "аутпута" будет отнесено к одной из трех категорий и представлено в виде one-hot вектора длиной 3.
 	# Маленькие значения будут кодироваться [1,0,0], средние - [0,1,0], большие - [0,0,1].  
-	bins = 3
+	bins = 5
 	op = futureRates['op'][0]
 	cl = futureRates['cl'][ahead]
 	hi = np.max( futureRates['hi'][:ahead+1] )
@@ -55,7 +55,7 @@ def calc_data(pastRates, futureRates):
 	observedBin = int( float(bins) * ( (observed + 1.0) / (2.0 + 1e-10) ) )
 	output = np.zeros( shape=[bins], dtype=np.float32 )
 	output[observedBin] = 1.0
-
+	
 	profit = clLessOp
 
 	# Print doneness 
