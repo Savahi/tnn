@@ -118,12 +118,12 @@ class Network:
         текущих значений: cost-функции (см. переменную cost в теле функции), 
         точности модели (см. переменную accuracy) и прибыльности (см. переменную profit)  
         Если saveRate==None, веса не сохраняются.
-        Сохраненные веса можно прочитать функцией load().
+        Сохраненные веса можно прочитать функцией loadТNetwork().
     saveDir (string, default:None) - задает имя папки, в которую будет сохраннен файл с весами сети.
         Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
     '''
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, numBatches=1,
+        learningRate=0.05, numEpochs=1000, balancer=0.0, autoBalancers=False, optimizer=None, numBatches=1,
         tradingLabel=None, shortTradesHaveNegativeProfit=True, flipOverTrading=False, prognoseProb=None, 
         summaryDir=None, printRate=20, learnIndicators=False, saveRate=None, saveDir=None ):
 
@@ -165,31 +165,41 @@ class Network:
                     1.0 * tf.cast( isLastLabelPrognosedOp, tf.float64 )
 
         # Cost-функция (costOp).
-        # Если переменная balancer > 0.0 - cost-функция будет учитывать "торговый" бин(ы) с бОльшим весом
+        # Если переменная balancer > 0.0, cost-функция будет учитывать "торговый" бин(ы) с бОльшим весом
+        # Если задана опция "autoBalance", будет рассчитано число элементов по каждому label; эти даннные будут учтены
+        # при рассчете cost-функции.
+        numSamplesOp = tf.shape(self.y)[0]
         if balancer > 0.0 and tradingLabel is not None: 
-            balancerZerosOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ], dtype=tf.float64 )
-            balancerVectorOp = tf.reshape( tf.cast(isTradingLabelPrognosedOp,tf.float64) * balancer, [tf.shape(self.y)[0],1] )
+            balancerZerosOp = tf.zeros( [ numSamplesOp, self.numLabels-1 ], dtype=tf.float64 )
+            balancerVectorOp = tf.reshape( tf.cast(isTradingLabelPrognosedOp,tf.float64) * balancer, [numSamplesOp,1] )
             if tradingLabel == self.numLabels-1:
                 balancerOp = tf.concat( [ balancerZerosOp, balancerVectorOp ], 1 ) + 1.0
             else:
                 balancerOp = tf.concat( [ balancerVectorOp, balancerZerosOp ], 1 ) + 1.0
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
-        elif balancer > 0.0 and tradingLabel is None:
-            balancerZerosOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-2 ], dtype=tf.float64 )
-            balancerFirstVectorOp = tf.reshape( tf.cast( isFirstLabelPrognosedOp, tf.float64 )*balancer, [tf.shape(self.y)[0],1] )
-            balancerLastVectorOp = tf.reshape( tf.cast( isLastLabelPrognosedOp, tf.float64 )*balancer, [tf.shape(self.y)[0],1] )
+        elif balancer > 0.0 and tradingLabel is None: # The balancer for trading labels is given as a parameter of the function 
+            balancerZerosOp = tf.zeros( [ numSamplesOp, self.numLabels-2 ], dtype=tf.float64 )
+            balancerFirstVectorOp = tf.reshape( tf.cast( isFirstLabelPrognosedOp, tf.float64 )*balancer, [numSamplesOp,1] )
+            balancerLastVectorOp = tf.reshape( tf.cast( isLastLabelPrognosedOp, tf.float64 )*balancer, [numSamplesOp,1] )
             balancerOp = tf.concat( [ balancerFirstVectorOp, balancerZerosOp, balancerLastVectorOp ], 1 ) + 1.0
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
+        elif balancer == 0.0 and tradingLabel is None and autoBalancers == True: # The auto-balance operation should be done
+            countsOfLabelsOp = tf.reduce_sum( self.y, 0 ) # Число обучающих примеров для каждого label
+            # Элементы (веса) balancerRow обратно пропорциональны числу примеров для каждого label: 
+            balancerRow = (tf.cast(numSamplesOp,tf.float64) - countsOfLabelsOp) / tf.cast(numSamplesOp,tf.float64)
+            # Делаем матрицу весов balancerOp для умножения на нее составляющих сost-функции
+            balancerTiledOp = tf.tile( balancerRow, [ numSamplesOp ] )
+            balancerOp = tf.reshape( balancerTiledOp, [ numSamplesOp, self.numLabels ] )
         else: 
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) + (1.0 - self.y) * tf.log(1.0 - yClippedOp), axis=1 ) )
+            balancerOp = tf.ones( [numSamplesOp, self.numLabels], dtype=tf.float64 )
+        costOp = -tf.reduce_mean( 
+            tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp) * balancerOp, axis=1 ) )
 
         # Оптимизатор. Если None, то используем GradientDescentOptimizer
         if optimizer is None:
             optimiserOp = tf.train.GradientDescentOptimizer( learning_rate=learningRate ).minimize( costOp )
-        elif isinstance( optimizer, object ): # Оптимизатор задан напрямую
-            optimiserOp = optimizer.minimize( costOp )
         elif isinstance( optimizer, str ):
             optimiserOp = utils.getOptimizer( optimizer, learningRate ).minimize( costOp )
+        elif isinstance( optimizer, object ): # Оптимизатор задан напрямую
+            optimiserOp = optimizer.minimize( costOp )
 
         # Операции для вычисления доходности ( finalBalanceOp )
         if tradingLabel == 0 and shortTradesHaveNegativeProfit == False:
@@ -211,9 +221,11 @@ class Network:
             tradeAccuracyOp = ( tf.reduce_sum( tf.cast( isTradingLabelPrognosedAndOccuredOp, tf.float64 ) ) + 1e-10 ) / \
                 ( tf.reduce_sum( tf.cast( isTradingLabelPrognosedOp, tf.float64 ) ) + 1e-10 )
         else:
-            isFirstLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(0, tf.int64) )
+            #isFirstLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(0, tf.int64) )
+            isFirstLabelOccuredOp = tf.equal( self.y[:,0], 1.0 )
             isFirstLabelPrognosedAndOccuredOp = tf.logical_and( isFirstLabelPrognosedOp, isFirstLabelOccuredOp )
-            isLastLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) )
+            #isLastLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) )
+            isLastLabelOccuredOp = tf.equal( self.y[:,self.numLabels-1], 1.0 ) 
             isLastLabelPrognosedAndOccuredOp = tf.logical_and( isLastLabelPrognosedOp, isLastLabelOccuredOp )
             firstLabelTradeAccuracyOp = ( tf.reduce_sum( tf.cast( isFirstLabelPrognosedAndOccuredOp, tf.float64 ) ) + 1e-10 ) / \
                 ( tf.reduce_sum( tf.cast( isFirstLabelPrognosedOp, tf.float64 ) ) + 1e-10 )
@@ -305,6 +317,20 @@ class Network:
                         finalBalanceTest = sess.run( finalBalanceOp, feed_dict = feedDictTest )    
                     else:
                         finalBalanceTest = 0.0
+
+                    # FOR DEBUGGING PURPOSES ONLY!!!!
+                    '''
+                    if epoch % printRate == 0:
+                        logValues = sess.run( tradesPrognosedOp, feed_dict = feedDictTest )
+                        logStr = ""
+                        logSum = 0
+                        for logValue in range( len(logValues) ):
+                            logStr += str(int(logValues[logValue])) + "x" + str( profitTest[logValue] ) + " "
+                            logSum += int(logValues[logValue]) * profitTest[logValue]
+                        utils.log( logStr ) 
+                        utils.log( logSum ) 
+                    '''
+                    # FOR DEBUGGING PURPOSES ONLY!!!!
 
                     if summaryDir is not None: # Формируем summary - "отчет" tensorflow
                         writer.add_summary( sess.run( accuracyTestSumm, feed_dict = feedDictTest ), epoch )

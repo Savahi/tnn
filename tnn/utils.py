@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*- 
 import tensorflow as tf
+import numpy as np
 
 # Принимает кодовую строку, обозначающую оптимизатор
 # Возвращает object - оптимизатор. Если был передан объект-оптимизатор - возвращает его же (сделано для удобства вызова)
@@ -48,4 +49,36 @@ def getActivationFunc( activationFuncs, index, outputLayer=False ):
         return activationFunc
     else:
         return None
+# end of def
+
+
+def log( logStr, fileName="log.txt" ):
+    ok = True
+
+    try:
+        logFile = open( fileName, "a" )
+    except Exception:
+        ok = False
+
+    if ok:
+        try:
+            logFile.write( str(logStr) + "\n" )
+        except Exception:
+            ok = False
+        finally:
+            logFile.close()
+    return ok
+# end of def
+
+
+# Подсчитывает число labels в выборке и возвращает соответствующий np.array
+# Используется для контроля качества данных, подаваемых в сеть для обучения 
+def countLabels( labels ):
+    rows, cols = np.shape( labels )
+    labelsCounter = np.zeros( shape=[cols] )
+    for i in range( rows ):
+        for j in range( cols ):
+            if labels[i][j] == 1:
+                labelsCounter[j] += 1
+    return labelsCounter
 # end of def

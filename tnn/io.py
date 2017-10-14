@@ -47,7 +47,7 @@ def loadNetwork( fileName ):
 
 
 # Готовит данные для обучения и тестирования сети. 
-def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None ):
+def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None ):
     global logMessage
     logMessage = ""
     retError = None, None
@@ -69,8 +69,11 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     dtm = rates['dtm']
     length = rates['length']
 
-    if calcData == None:
+    if calcData is None:
         calcData = __calcData
+    else: # Если задана пользовательская функция calcData, то проверяем, задана ли также функция preCalcData
+        if precalcData is not None:
+            precalcData(rates)
 
     nnInputs = []
     nnLabels = []
@@ -175,7 +178,7 @@ def __calcData( pastRates, futureRates ):
         ahead = 0 # По умолчанию смотрим вперед на один период, а значит нас интересует цена закрытия 0-го периода
     else:
         ahead = __lookAhead
-    if ahead >= len(futureRates): # Если требуется смотреть за пределы массивов с котировками, расчет невозможен.
+    if ahead >= len(futureRates['cl']): # Если требуется смотреть за пределы массивов с котировками, расчет невозможен.
         return retErr
 
     # Вычисляем "аутпут" - отношение (CLOSE-OPEN) / (HIGH-LOW) на указанном (переменной ahead) отрезке "ближайшего будущего".
@@ -262,4 +265,3 @@ def loadData( fileName, normOnly=False ):
     else:
         return None
 # end of loadData()
-

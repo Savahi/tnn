@@ -9,7 +9,7 @@ from tnn.io import loadNetwork
 		print "Can't load network.\nExiting..."
 		sys.exit(0)
 
-	input = # Calculating inputs
+	x = # Calculating inputs
 	
 	output = nn.calcOutput(x)
 	if output is not None:
