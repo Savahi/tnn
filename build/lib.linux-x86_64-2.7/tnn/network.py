@@ -48,25 +48,31 @@ class Network:
                     numNodes0 = numFeatures
                 else: # Если не первый слой, то его размерность по оси '0' равна размерности предыдущего по оси '1'
                     numNodes0 = numNodes[i-1]
-                w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(i) )
-                b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), name='b'+str(i) )
+                w = tf.Variable( tf.random_normal( [ numNodes0, numNodes[i] ], stddev=stdDev, dtype=tf.float64 ), 
+                    name='W'+str(i), trainable=True )
+                b = tf.Variable( tf.random_normal( [ numNodes[i] ], dtype=tf.float64 ), 
+                    name='b'+str(i), trainable=True )
                 self.weights.append(w)
                 self.bs.append(b)            
             # Веса (w) + bias column (b) для связи hidden-слоя и output-слоя. 
-            w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), name='W'+str(numLayers) )
-            b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), name='b'+str(numLayers) )
+            w = tf.Variable( tf.random_normal( [ numNodes[numLayers-1], numLabels ], stddev=stdDev, dtype=tf.float64 ), 
+                name='W'+str(numLayers), trainable=True )
+            b = tf.Variable( tf.random_normal( [ numLabels ], dtype=tf.float64 ), 
+                name='b'+str(numLayers), trainable=True )
             self.weights.append(w)
             self.bs.append(b)
         else: # Если веса заданы в качестве параметров функции, инициализируем ими соотетствующие tf-переменные
             for i in range( numLayers+1 ):
-                w = tf.Variable( weights[i], dtype=tf.float64, name='W'+str(i) )
-                b = tf.Variable( bs[i], dtype=tf.float64, name='b'+str(i) )
+                w = tf.Variable( weights[i], dtype=tf.float64, name='W'+str(i), trainable=True )
+                b = tf.Variable( bs[i], dtype=tf.float64, name='b'+str(i), trainable=True )
                 self.weights.append(w)
                 self.bs.append(b)
 
         self.activationFuncs = activationFuncs # Функции активации для каждого слоя
 
         self.learnDir = "" # На этапе обучения в эту переменную будет записана строка, сформированная из текущих даты и времени
+
+        self.profit = tf.placeholder( tf.float64, [ None ] ) # Доходность для рассчета прибыльности во время обучения и тестирования
 
         Network.numNetworks += 1 # Увеличиваем счетчик сетей на 1.
     # end of __init__
@@ -112,12 +118,12 @@ class Network:
         текущих значений: cost-функции (см. переменную cost в теле функции), 
         точности модели (см. переменную accuracy) и прибыльности (см. переменную profit)  
         Если saveRate==None, веса не сохраняются.
-        Сохраненные веса можно прочитать функцией load().
+        Сохраненные веса можно прочитать функцией loadТNetwork().
     saveDir (string, default:None) - задает имя папки, в которую будет сохраннен файл с весами сети.
         Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
     '''
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
-        learningRate=0.05, numEpochs=1000, balancer=0.0, optimizer=None, 
+        learningRate=0.05, numEpochs=1000, balancer=0.0, autoBalancers=False, optimizer=None, numBatches=1,
         tradingLabel=None, shortTradesHaveNegativeProfit=True, flipOverTrading=False, prognoseProb=None, 
         summaryDir=None, printRate=20, learnIndicators=False, saveRate=None, saveDir=None ):
 
@@ -143,12 +149,12 @@ class Network:
             if tradingLabel == 0:
                 tradesPrognosedOp = -1.0 * tradesPrognosedOp
         else: # Если торговый бин не указан, то предполагается, что сеть торгует по первому (SHORT) и последнему (LONG) бинам 
-            if prognoseProb is None:            
+            if prognoseProb is None: 
                 isFirstLabelPrognosedOp = tf.equal( tf.argmax( yOp,1 ), 0 )
                 isLastLabelPrognosedOp = tf.equal( tf.argmax( yOp,1 ), self.numLabels-1 )
                 tradesPrognosedOp = -1.0 * tf.cast( isFirstLabelPrognosedOp, tf.float64 ) + \
                     1.0 * tf.cast( isLastLabelPrognosedOp, tf.float64 )
-            else:
+            else: # Если указана прогнозная вероятность:
                 isFirstOp = tf.greater( yOp[:,0], prognoseProb )
                 isLastOp = tf.greater( yOp[:,self.numLabels-1], prognoseProb )
                 isFirstGreaterOp = tf.greater( yOp[:,0], yOp[:,self.numLabels-1] )
@@ -159,58 +165,55 @@ class Network:
                     1.0 * tf.cast( isLastLabelPrognosedOp, tf.float64 )
 
         # Cost-функция (costOp).
-        # Если переменная balancer > 0.0 - cost-функция будет учитывать "торговый" бин(ы) с бОльшим весом
+        # Если переменная balancer > 0.0, cost-функция будет учитывать "торговый" бин(ы) с бОльшим весом
+        # Если задана опция "autoBalance", будет рассчитано число элементов по каждому label; эти даннные будут учтены
+        # при рассчете cost-функции.
+        numSamplesOp = tf.shape(self.y)[0]
         if balancer > 0.0 and tradingLabel is not None: 
-            balancerZerosOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-1 ], dtype=tf.float64 )
-            balancerVectorOp = tf.reshape( tf.cast(isTradingLabelPrognosedOp,tf.float64) * balancer, [tf.shape(self.y)[0],1] )
+            balancerZerosOp = tf.zeros( [ numSamplesOp, self.numLabels-1 ], dtype=tf.float64 )
+            balancerVectorOp = tf.reshape( tf.cast(isTradingLabelPrognosedOp,tf.float64) * balancer, [numSamplesOp,1] )
             if tradingLabel == self.numLabels-1:
                 balancerOp = tf.concat( [ balancerZerosOp, balancerVectorOp ], 1 ) + 1.0
             else:
                 balancerOp = tf.concat( [ balancerVectorOp, balancerZerosOp ], 1 ) + 1.0
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
-        elif balancer > 0.0 and tradingLabel is None:
-            balancerZerosOp = tf.zeros( [ tf.shape(self.y)[0], self.numLabels-2 ], dtype=tf.float64 )
-            balancerFirstVectorOp = tf.reshape( tf.cast( isFirstLabelPrognosedOp, tf.float64 )*balancer, [tf.shape(self.y)[0],1] )
-            balancerLastVectorOp = tf.reshape( tf.cast( isLastLabelPrognosedOp, tf.float64 )*balancer, [tf.shape(self.y)[0],1] )
+        elif balancer > 0.0 and tradingLabel is None: # The balancer for trading labels is given as a parameter of the function 
+            balancerZerosOp = tf.zeros( [ numSamplesOp, self.numLabels-2 ], dtype=tf.float64 )
+            balancerFirstVectorOp = tf.reshape( tf.cast( isFirstLabelPrognosedOp, tf.float64 )*balancer, [numSamplesOp,1] )
+            balancerLastVectorOp = tf.reshape( tf.cast( isLastLabelPrognosedOp, tf.float64 )*balancer, [numSamplesOp,1] )
             balancerOp = tf.concat( [ balancerFirstVectorOp, balancerZerosOp, balancerLastVectorOp ], 1 ) + 1.0
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp ) * balancerOp, axis=1 ) )
+        elif balancer == 0.0 and tradingLabel is None and autoBalancers == True: # The auto-balance operation should be done
+            countsOfLabelsOp = tf.reduce_sum( self.y, 0 ) # Число обучающих примеров для каждого label
+            # Элементы (веса) balancerRow обратно пропорциональны числу примеров для каждого label: 
+            balancerRow = (tf.cast(numSamplesOp,tf.float64) - countsOfLabelsOp) / tf.cast(numSamplesOp,tf.float64)
+            # Делаем матрицу весов balancerOp для умножения на нее составляющих сost-функции
+            balancerTiledOp = tf.tile( balancerRow, [ numSamplesOp ] )
+            balancerOp = tf.reshape( balancerTiledOp, [ numSamplesOp, self.numLabels ] )
         else: 
-            costOp = -tf.reduce_mean( tf.reduce_sum( self.y * tf.log(yClippedOp) + (1.0 - self.y) * tf.log(1.0 - yClippedOp), axis=1 ) )
+            balancerOp = tf.ones( [numSamplesOp, self.numLabels], dtype=tf.float64 )
+        costOp = -tf.reduce_mean( 
+            tf.reduce_sum( self.y * tf.log(yClippedOp) * balancerOp + (1.0 - self.y) * tf.log(1.0 - yClippedOp) * balancerOp, axis=1 ) )
 
         # Оптимизатор. Если None, то используем GradientDescentOptimizer
         if optimizer is None:
             optimiserOp = tf.train.GradientDescentOptimizer( learning_rate=learningRate ).minimize( costOp )
-        elif callable( optimizer ): # Оптимизатор задан напрямую
-            optimiserOp = optimizer.minimize( costOp )
         elif isinstance( optimizer, str ):
             optimiserOp = utils.getOptimizer( optimizer, learningRate ).minimize( costOp )
+        elif isinstance( optimizer, object ): # Оптимизатор задан напрямую
+            optimiserOp = optimizer.minimize( costOp )
 
         # Операции для вычисления доходности ( finalBalanceOp )
-        profitBySamples = tf.placeholder( tf.float64, [ None ] )
         if tradingLabel == 0 and shortTradesHaveNegativeProfit == False:
-            profitByTrades = tf.multiply( tf.abs(tradesPrognosedOp), profitBySamples )
+            profitByTrades = tf.multiply( tf.abs(tradesPrognosedOp), self.profit )
         elif flipOverTrading:
             flipOverTradesOp = self.__flipOverTrades( tradesPrognosedOp )
-            profitByTrades = tf.multiply( flipOverTradesOp, profitBySamples )
+            profitByTrades = tf.multiply( flipOverTradesOp, self.profit )
         else:
-            profitByTrades = tf.multiply( tradesPrognosedOp, profitBySamples )            
+            profitByTrades = tf.multiply( tradesPrognosedOp, self.profit )            
         finalBalanceOp = tf.reduce_sum( profitByTrades )  
 
         # Операции для оценки общей точности модели. Общая точность оценивается по числу совпадений предсказаний по ВСЕМ бинам
         accuracyOp = tf.reduce_mean( tf.cast( tf.equal( tf.argmax(self.y, 1), tf.argmax(yOp, 1) ), tf.float64 ) )
 
-        # Вычисление "торговой" точности - предсказания по последнему бину учитываются с бОльшим весом, нежели предсказания по другим бинам 
-        '''
-        isTradePredictedOp = tf.cast( tf.equal( tf.argmax( yOp, 1), tf.cast(self.numLabels-1, tf.int64) ), tf.float64 )
-        isTradeOccuredOp = tf.cast( tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) ), tf.float64 )
-        tradePredictionErrorOp = tf.cast( tf.abs( tf.argmax(yOp, 1) - tf.argmax(self.y, 1) ), tf.float64 )
-        if balancer == 0.0:
-            tradeAccuracyCoeff = 4.0
-        else:
-            tradeAccuracyCoeff = balancer
-        tradeAccuracyOp = tf.reduce_mean( self.numLabels -
-            tradePredictionErrorOp * (isTradePredictedOp*tradeAccuracyCoeff+1.0) * (isTradeOccuredOp*(tradeAccuracyCoeff/2.0)+1.0) )
-        '''
         # Вычисление "торговой" точности - учитываются ТОЛЬКО предсказания по "торговому(ым)" бину(ам) 
         if tradingLabel is not None:
             isTradingLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(tradingLabel, tf.int64) )
@@ -218,9 +221,11 @@ class Network:
             tradeAccuracyOp = ( tf.reduce_sum( tf.cast( isTradingLabelPrognosedAndOccuredOp, tf.float64 ) ) + 1e-10 ) / \
                 ( tf.reduce_sum( tf.cast( isTradingLabelPrognosedOp, tf.float64 ) ) + 1e-10 )
         else:
-            isFirstLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(0, tf.int64) )
+            #isFirstLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(0, tf.int64) )
+            isFirstLabelOccuredOp = tf.equal( self.y[:,0], 1.0 )
             isFirstLabelPrognosedAndOccuredOp = tf.logical_and( isFirstLabelPrognosedOp, isFirstLabelOccuredOp )
-            isLastLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) )
+            #isLastLabelOccuredOp = tf.equal( tf.argmax( self.y, 1), tf.cast(self.numLabels-1, tf.int64) )
+            isLastLabelOccuredOp = tf.equal( self.y[:,self.numLabels-1], 1.0 ) 
             isLastLabelPrognosedAndOccuredOp = tf.logical_and( isLastLabelPrognosedOp, isLastLabelOccuredOp )
             firstLabelTradeAccuracyOp = ( tf.reduce_sum( tf.cast( isFirstLabelPrognosedAndOccuredOp, tf.float64 ) ) + 1e-10 ) / \
                 ( tf.reduce_sum( tf.cast( isFirstLabelPrognosedOp, tf.float64 ) ) + 1e-10 )
@@ -256,17 +261,8 @@ class Network:
             # Инициализируем переменные
             sess.run( tf.global_variables_initializer() )
 
-            # Исходные данные: для обучения (train) и тестирования (test) 
-            if profit is None:
-                profitFeed = []
-            else:
-                profitFeed = profit 
-            feedDict = { self.x: x, self.y: y, profitBySamples: profitFeed }
-            if profitTest is None:
-                profitFeed = []
-            else:
-                profitFeed = profitTest 
-            feedDictTest = { self.x: xTest, self.y: yTest, profitBySamples: profitFeed }
+            # Исходные данные: для обучения (train) и тестирования (test)
+            feedDict, feedDictTest = self.__initFeedDicts( x, y, profit, xTest, yTest, profitTest, 1, 1 ) 
 
             # Если указано считать регрессионную зависимость между показателями сети на train и test, 
             # инициализируем массивы для хранения соответствующих данных
@@ -276,9 +272,15 @@ class Network:
             # Запускаем обучение 
             for epoch in range(numEpochs):
 
-                epochLog = "" # Текстовая строка, которая бует выведена в лог
+                epochLog = "" # Текстовая строка, которая будет выведена в лог
 
-                sess.run([optimiserOp], feed_dict = feedDict ) # Запускаем операцию оптимизации сети, заданную выше
+                # numBatches = 10
+                if numBatches > 1: # Запускаем поэтапную оптимизации сети, предварительно разбив samples на "пакеты".
+                    for i in range(numBatches):
+                        feedDictBatched, _ = self.__initFeedDicts( x, y, profit, None, None, None, numBatches, i+1 )
+                        sess.run(optimiserOp, feed_dict = feedDictBatched )                    
+                else:
+                    sess.run(optimiserOp, feed_dict = feedDict ) # Запускаем операцию оптимизации сети для samples сразу
                 
                 # Вычисляем переменные - показатели функционирования сети на обучающих (train) данных: значение cost-функици, 
                 # точность прогнозов по ВСЕМ бинам (accuracy) и точность прогнозов по ПОСЛЕДНЕМУ бину (tradeAccuracy)
@@ -315,6 +317,20 @@ class Network:
                         finalBalanceTest = sess.run( finalBalanceOp, feed_dict = feedDictTest )    
                     else:
                         finalBalanceTest = 0.0
+
+                    # FOR DEBUGGING PURPOSES ONLY!!!!
+                    '''
+                    if epoch % printRate == 0:
+                        logValues = sess.run( tradesPrognosedOp, feed_dict = feedDictTest )
+                        logStr = ""
+                        logSum = 0
+                        for logValue in range( len(logValues) ):
+                            logStr += str(int(logValues[logValue])) + "x" + str( profitTest[logValue] ) + " "
+                            logSum += int(logValues[logValue]) * profitTest[logValue]
+                        utils.log( logStr ) 
+                        utils.log( logSum ) 
+                    '''
+                    # FOR DEBUGGING PURPOSES ONLY!!!!
 
                     if summaryDir is not None: # Формируем summary - "отчет" tensorflow
                         writer.add_summary( sess.run( accuracyTestSumm, feed_dict = feedDictTest ), epoch )
@@ -359,7 +375,7 @@ class Network:
         if self.activationFuncs is None: 
             outputOp = tf.nn.softmax( outputMatrix )
         else:
-            activationFunc = getActivationFunc( self.activationFuncs, self.numLayers, outputLayer=True ) 
+            activationFunc = utils.getActivationFunc( self.activationFuncs, self.numLayers, outputLayer=True ) 
             outputOp = activationFunc( outputMatrix )
         return outputOp
     # end of def
@@ -410,6 +426,48 @@ class Network:
             if epochNum % printRate == 0:
                 print epochLog
     # end of def
+
+    # Инициализирует словари для операций с тензорами - train и test. 
+    # При необходимости (если numBatches > 1) выделяет из выборки подвыборку (batch). 
+    def __initFeedDicts( self, x, y, profit, xTest, yTest, profitTest, numBatches, batchNum ):
+
+        xBatched, yBatched, profitBatched = self.__getBatches( x, y, profit, batchNum, numBatches )
+        feedDict = { self.x: xBatched, self.y: yBatched, self.profit: profitBatched }
+        
+        xBatched, yBatched, profitBatched = self.__getBatches( xTest, yTest, profitTest, batchNum, numBatches )
+        feedDictTest = { self.x: xBatched, self.y: yBatched, self.profit: profitBatched }
+
+        return feedDict, feedDictTest
+
+    # Выделяет из массивов x, y и profit подвыборку (batch).
+    # Если numBatches == 1, возвращает те же самые массивы x, y и profit.
+    def __getBatches( self, x, y, profit, numBatches, batchNum ):
+        if numBatches > 1 and x is not None:
+            numSamples = np.shape(x)[0]
+            batchStart = int( (batchNum-1) * numSamples / numBatches )
+            batchEnd = int( float(batchNum) * numSamples / numBatches )
+        if x is not None:
+            if numBatches == 1:
+                xBatched = x
+            else:
+                xBatched = x[batchStart:batchEnd:]
+        else:
+            xBatched = []
+        if y is not None:
+            if numBatches == 1:
+                yBatched = y
+            else:
+                yBatched = y[batchStart:batchEnd:]
+        else:
+            yBatched = []
+        if profit is not None:
+            if numBatches == 1:
+                profitBatched = profit
+            else:                
+                profitBatched = profit[batchStart:batchEnd]
+        else:
+            profitBatched = []
+        return xBatched, yBatched, profitBatched
 
     # Сохраняет веса сети в файл fileName.
     # Возвращает True в случае успеха и False в случае ошибки.  

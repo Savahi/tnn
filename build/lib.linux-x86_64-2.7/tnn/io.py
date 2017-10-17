@@ -47,7 +47,7 @@ def loadNetwork( fileName ):
 
 
 # Готовит данные для обучения и тестирования сети. 
-def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None ):
+def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None ):
     global logMessage
     logMessage = ""
     retError = None, None
@@ -66,21 +66,29 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     lo = rates['lo']
     cl = rates['cl']
     vol = rates['vol']
+    dtm = rates['dtm']
     length = rates['length']
 
-    if calcData == None:
+    if calcData is None:
         calcData = __calcData
+    else: # Если задана пользовательская функция calcData, то проверяем, задана ли также функция preCalcData
+        if precalcData is not None:
+            precalcData(rates)
 
     nnInputs = []
     nnLabels = []
     nnProfit = []
     for i in range(length-1,0,-1):
         # Inputs
-        pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:] }
-        futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1] }
+        pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:], 'dtm':dtm[i:] }
+        futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1], 'dtm':dtm[i-1::-1] }
 
-        inputs, labels, profit = calcData( pastRates, futureRates )
-        if inputs is None or labels is None:
+        res = calcData( pastRates, futureRates )
+        if isinstance( res, tuple ): # Если функция вернула tuple (как результат корректного завершени работы)
+            inputs, labels, profit = res 
+            if inputs is None or labels is None: # Удостоверимся, что главные переменные - не None
+                continue
+        else: # Функция вернула не tuple - по соглашению это может быть только None, то есть "неудача"
             continue
         nnInputs.append( inputs )
         nnLabels.append( labels )
@@ -170,7 +178,7 @@ def __calcData( pastRates, futureRates ):
         ahead = 0 # По умолчанию смотрим вперед на один период, а значит нас интересует цена закрытия 0-го периода
     else:
         ahead = __lookAhead
-    if ahead >= len(futureRates): # Если требуется смотреть за пределы массивов с котировками, расчет невозможен.
+    if ahead >= len(futureRates['cl']): # Если требуется смотреть за пределы массивов с котировками, расчет невозможен.
         return retErr
 
     # Вычисляем "аутпут" - отношение (CLOSE-OPEN) / (HIGH-LOW) на указанном (переменной ahead) отрезке "ближайшего будущего".
@@ -257,4 +265,3 @@ def loadData( fileName, normOnly=False ):
     else:
         return None
 # end of loadData()
-

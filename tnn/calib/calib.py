@@ -4,6 +4,7 @@ import importlib
 from tnn.io import prepareData
 from tnn.network import Network
 from tnn.data_handler.load_raw_data import *
+from tnn.utils import countLabels # !!!!FOR DEBUGGING PURPOSES ONLY!!!!
 
 def calib (configfile):
 	config = importlib.import_module("tnn.calib."+configfile)
@@ -21,6 +22,8 @@ def calib (configfile):
 	if trainData is None:
 		print "Failed to prepare data.\nExiting..."
 		return
+
+	print "Labels: " + str( countLabels( trainData['labels'] ) ) # !!!!FOR DEBUGGING PURPOSES ONLY!!!!
 
 	"""nn.learn(trainData['inputs'], trainData['labels'], trainData['profit'], testData['inputs'], testData['labels'], testData['profit'],
 		   learningRate=config["learningRate"], 

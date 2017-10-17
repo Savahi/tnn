@@ -15,7 +15,7 @@ params = {
 	},
 
 	
-	"raw_file":"RTS_1h_150820_170820.txt",
+	"raw_file":"../tnn-test/RTS_1h_150820_170820.txt",
 
 	# Функции формирования данных; None=поведение по умолчанию
 	"calcData": None, #calc_data,
@@ -23,7 +23,7 @@ params = {
 	# Параметры обучения
 	"learningRate":0.050,
 	"numEpochs":2000,
-	"optimizer":'GradientDescent',
+	"optimizer":'Adam',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 
         # Если summaryDir==None, отчеты записываться не будут.

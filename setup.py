@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup( 
 	name = 'tnn',
-	version = '0.0.2',
+	version = '0.0.3',
 	description = 'Tensorflow Neural Network Framework for Algorithmic Traders',
 	url = 'http://github.com/Savahi/tnn',
 	author = 'Savahi',
