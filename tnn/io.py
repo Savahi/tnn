@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 import numpy as np
 import taft
+import shelve
 from network import Network
 
 # Переменная для записи сообщений о ошибках

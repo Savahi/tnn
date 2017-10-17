@@ -21,7 +21,7 @@ params = {
 
 	# Параметры обучения
 	"learningRate":0.050,
-	"numEpochs":2000,
+	"numEpochs":1000,
 	"optimizer":'Adam',
 
 	# папка, куда tensorflow пишет summary ("отчет"). 
@@ -42,5 +42,5 @@ params = {
 
 	#имя папки, в которую будет сохраннен файл с весами сети.
         #Если saveDir==None, имя папки будет сгенерировано на основе текущих даты и времени.
-	"saveDir":""
+	"saveDir":None
 }
