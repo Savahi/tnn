@@ -125,7 +125,7 @@ class Network:
     def learn( self, x, y, profit=None, xTest=None, yTest=None, profitTest=None, 
         learningRate=0.05, numEpochs=1000, balancer=0.0, autoBalancers=False, optimizer=None, numBatches=1,
         tradingLabel=None, shortTradesHaveNegativeProfit=True, flipOverTrading=False, prognoseProb=None, 
-        summaryDir=None, printRate=20, learnIndicators=False, saveRate=None, saveDir=None ):
+        summaryDir=None, printRate=20, learnIndicators=False, saveRate=None, saveDir=None):
 
         # Время запуска сеанса обучения в виде текстовой строки. Будет использоваться для создания папок с отчетами 
         self.learnDir = dt.datetime.now().strftime("%Y%m%d%H%M%S")
