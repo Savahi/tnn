@@ -71,6 +71,13 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     dtm = rates['dtm']
     length = rates['length']
 
+    # If data precalculation is required
+    if precalcData is not None:
+        precalcData(rates)
+    elif isinstance( calcData, CalcData ):
+        if callable( calcData.precalcData ):
+            calcData.precalcData( calcData, rates )
+
     if calcData is None: # If None using the built in function
         calcDataFunc = __calcData
     elif isinstance( calcData, CalcData ): # If calcData is an object
@@ -80,15 +87,8 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     else:
         return retErr
 
-    # If data precalculation is required
-    if precalcData is not None:
-        precalcData(rates)
-    elif isinstance( calcData, CalcData ):
-        if hasattr( calcData, 'precalcData' ):
-            calcData.precalcData(rates)
-
     nnInputs = []
-    nnLabels = []
+    nnObserved = []
     nnProfit = []
     for i in range(length-1,0,-1):
         # Inputs
@@ -97,14 +97,31 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
 
         res = calcDataFunc( pastRates, futureRates )
         if isinstance( res, tuple ): # Если функция вернула tuple (как результат корректного завершени работы)
-            inputs, labels, profit = res 
-            if inputs is None or labels is None: # Удостоверимся, что главные переменные - не None
+            inputs, observed, profit = res 
+            if inputs is None or observed is None: # Удостоверимся, что главные переменные - не None
                 continue
         else: # Функция вернула не tuple - по соглашению это может быть только None, то есть "неудача"
             continue
         nnInputs.append( inputs )
-        nnLabels.append( labels )
+        nnObserved.append( observed )
         nnProfit.append( profit )
+
+    if len(nnInputs) == 0:
+        return retErr
+    if len(nnObserved) == 0:
+        return retErr
+
+    if isinstance( nnObserved[0], float ): # Instead of labels single observed float values has been received. Labeling is required. 
+        scale = createScale( nnObserved, calcData.numLabels )
+        calcData.lookAheadLabelScale = scale 
+        nnLabels = []
+        for observedIndex in range( len(nnObserved) ):
+            label = calcData.getLabelByScale( nnObserved[observedIndex] )
+            labels = np.zeros( shape=[calcData.numLabels], dtype=np.float32 )
+            labels[label] = 1
+            nnLabels.append( labels )
+    else:
+        nnLabels = nnObserved
 
     nnInputs = np.array( nnInputs, dtype='float' )
     numSamples, numFeatures = np.shape( nnInputs )
@@ -277,3 +294,16 @@ def loadData( fileName, normOnly=False ):
     else:
         return None
 # end of loadData()
+
+
+def createScale( values, numLabels ):
+    scale=[]
+
+    valuesSorted = np.sort( values )
+    numValuesSorted = len( valuesSorted )
+
+    for i in range( 1, numLabels ):
+        index = int( i * numValuesSorted / numLabels )
+        scale.append( valuesSorted[index] )
+
+    return scale

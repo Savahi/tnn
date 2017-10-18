@@ -11,7 +11,7 @@ class CalcData:
 	tradingTime (list of int pairs, default:None ) - Hours and minutes allowed for trading
 		Example: [ [14, None], [15, 0], [15,5], [15,10] ] allows trades to open from 14:00 to 15:10
 	'''
-	def __init__( self, numLabels=5, intraDay=False, tradingDays=None, tradingTime=None ):
+	def __init__( self, numLabels=5, intraDay=False, tradingDays=None, tradingTime=None, precalcData=None ):
 
 		self.intraDay = intraDay
 		self.numLabels = numLabels
@@ -21,44 +21,41 @@ class CalcData:
 
 		self.lookBackOps = [] # { 'name': , 'shift':  , 'period': , etc }
 
-		self.precalcData = lambda(rates): True
+		self.precalcData = precalcData
 	# end of def
 
 	'''
-		method (string, default: 'cohl-ratio') - Possible values:
+		method (string, default: 'cohl') - Possible values:
 			'cohl-ratio': The ratio <close-less-open> divided by <high-less-low> is calculated within 
 				the interval given by the 'interval' parameter (see below);
-			'tpsl-slid': A trade is simulated with sliding take-profit and stop-loss value given by the 
-				'tpsl' parameter (see below).
+			'amplitude': Waiting for price making the given amplitude (see below).
 			'return': The return (<close-less-open> value) is calculated for the interval given 
 				by the 'interval' parameter (see below). 
 		interval (int, default:1) - Interval to look ahead. The parameter takes effect only 
-			if method == 'cohl-ratio' or 'return'. 
-		tpsl (float or function, default:None) - Take-profit and stop-loss used when simulating a trade
-			(for 'tpsl-slid' method only, see above).
-			If 'function' calculates the size of take-profit/stop-loss and returns the value. Example: 
-				def tpsl( pastRates ): 
-					return (pastRates['hi'][0] - pastRates['lo'][0])
-		bounds (list of float, default:None) - Bounds to split return (profit) into classes (labels)
-			Example: [ -1, 0, 1 ] splits the whole range of values into four groups: less than -1, 
-				from -1 to 0, from 0 to 1, more than 1.
-			Takes effect only if method=='return' (see above).
-		calc (function, default:None) - If calc is not None it should be a function that calculates 
-			a one-hot list or numpy array of labels. The other parameters of the 'addLookAheadOp' 
-			function have no effect if calc is not None. 
-			Example:
-				def calc( futureRates ):
-					# Doing calculations 
-					return [0,1,0,0,0]
+			if method == 'cohl' or 'return'. 
+		amplitude (float or function, default:None) - Price amplitude for the 'amplitude' method
+		scale (list of float, default:None) - Scale used to group oberved values 
+			(calculated by look-ahead functionality) into classes (labels)
 	'''
-	def addLookAheadOp( self, method="", interval=1, tpsl=None, bounds=None, noOvernight=False, calc=None ):
+	def addLookAheadOp( self, method="", interval=1, amplitude=None, scale=None, noOvernight=False ):
 		self.lookAheadInterval = interval-1
 		self.lookAheadMethod = method
 		self.lookAheadNoOvernight = noOvernight
-		self.lookAheadTPSL = tpsl
-		self.lookAheadBounds = bounds
+		self.lookAheadAmplitude = amplitude
+		self.lookAheadLabelScale = scale
 
-		self.lookAheadCalc = calc
+		self.lookAheadFunc = None
+	# end of def
+
+	'''
+		Calculates a one-hot list or numpy array of labels. 
+		Example:
+			def calc( futureRates ):
+				# Doing calculations 
+				return [0,1,0,0,0]
+	'''
+	def addLookAheadFunc( self, func ):
+		self.lookAheadFunc = func
 	# end of def
 
 	'''
@@ -71,6 +68,7 @@ class CalcData:
 			"stochastic"
 			"roc"
 			"vol"
+			"return"
 	shift (int, default:0) - The shift inside the 'past rates' arrays. 
 		0th index points to the latest rates.
 	period (int, default:10) - The interval used to calculate the indicator, given by 'name'.
@@ -94,7 +92,7 @@ class CalcData:
 	def run( self, pastRates, futureRates ):
 		retErr = None, None, None
 
-		if len(pastRates) == 0 or len(futureRates) == 0:
+		if len(pastRates) == 0:
 			return retErr
 
 		inputs = []
@@ -102,8 +100,7 @@ class CalcData:
 		profit = None
 
 		cl0 = pastRates['cl'][0] # Последняя известная нам котировка - цена закрытия последней по времени поступления свечи
-		op0 = futureRates['op'][0] # Ближайшее "доступное" нам "будущее" - это цена открытия 0-го (по futureRates) периода
-		time0 = futureRates['dtm'][0] # Ближайшее "доступное" нам "будущее" - его дата и время
+		time0 = pastRates['dtm'][0] # Последняя известная нам котировка - ее дата и время
 
 		# Trading days of week are given
 		if self.tradingDays is not None:
@@ -184,12 +181,23 @@ class CalcData:
 		 		return retErr
 		# end of for
 
+		if futureRates is None: # The function run 'for real', no future rates are known...
+			return inputs
+
 		# ****************************************************************************************************************
 		# **** LOOK AHEAD SECTION ****
-		if self.lookAheadCalc is not None: # A function calculating label and profit has been given
-			labels, profit = self.lookAheadCalc( futureRates )
+
+		if len(futureRates) == 0:
+			return retErr
+
+		op0 = futureRates['op'][0] # Ближайшее "доступное" нам "будущее" - это цена открытия 0-го (по futureRates) периода
+
+		if self.lookAheadFunc is not None: # A function calculating label and profit has been given
+			labels, profit = self.lookAheadFunc( self, pastRates, futureRates )
 		else:
-			if self.lookAheadMethod == 'cohl-ratio': # close-open / high-low ratio method
+			label = -1
+			observed = 0.0
+			if self.lookAheadMethod == 'cohl': # close-open / high-low ratio method
 				if self.lookAheadInterval is None: # Look ahead period should had been given
 					return retErr
 				if self.lookAheadInterval >= len(futureRates['cl']):
@@ -205,27 +213,17 @@ class CalcData:
 					observed = 0.0
 				label = int( float( self.numLabels) * ( (observed + 1.0) / (2.0 + 1e-10) ) )
 			elif self.lookAheadMethod == 'return': # A return (close-open) at the given interval of time  
-				if self.lookAheadInterval >= len(futureRates): # Can't look beyond the bounds
+				if self.lookAheadInterval >= len(futureRates['cl']): # Can't look beyond the bounds
 					return retErr
-				if self.lookAheadBounds is None:
-					return retErr					
 				profit = futureRates['cl'][self.lookAheadInterval] - op0
-				label=-1
-				for b in range( len(self.lookAheadBounds) ):
-					if profit < self.lookAheadBounds[b]:
-						label=b
-						break
-				if label == -1:
-					label = self.numLabels-1
-			elif self.lookAheadMethod == 'slid-tpsl': # Sliding take-profit/stop-loss method
-				if isinstance( self.lookAheadTPSL, float ): # TP and SL has been given as a number 
-					tpsl = self.lookAheadTPSL
-				elif callable( self.lookAheadTPSL ): # TP and SL are to be calculated by the function 
-					tpsl = self.lookAheadTPSL( pastRates )
-					if tpsl is None:
-						return retErr
+				if self.lookAheadLabelScale is not None:
+					label = self.getLabelByScale( profit )
 				else:
+					observed = profit
+			elif self.lookAheadMethod == 'amplitude': # Sliding take-profit/stop-loss method
+				if self.lookAheadAmplitude is None: 
 					return retErr
+				amplitude = self.lookAheadAmplitude
 				if self.lookAheadInterval is not None:
 					lookAhead = self.lookAheadInterval
 				else:
@@ -235,29 +233,31 @@ class CalcData:
 				isHit = False
 				for ahead in range( lookAhead ):
 					if ahead > 0 and self.intraDay: # If intra-day trading
-						if futureRates['dtm'][ahead].day != time0.day:
+						if futureRates['dtm'][ahead].day != futureRates['dtm'][0].day:
 							return retErr
 					up = futureRates['hi'][ahead] - op0 
 					down = op0 - futureRates['lo'][ahead]
 					if up > hitUp:
 						hitUp = up
-						if hitUp + hitDown >= tpsl:
-							profit = tpsl - hitDown
+						if hitUp + hitDown >= amplitude:
+							profit = amplitude - hitDown
 							isHit = True
 							break
 					if down > hitDown:
 						hitDown = down
-						if hitUp + hitDown >= tpsl:
-							profit = hitUp - tpsl
+						if hitUp + hitDown >= amplitude:
+							profit = hitUp - amplitude
 							isHit = True
 							break
 				if not isHit:
 					return retErr
-				label = int( float(self.numLabels) * ( 1.0 + profit/tpsl ) / (2.0 + 1e-10) )
+				label = int( float(self.numLabels) * ( 1.0 + profit/amplitude ) / (2.0 + 1e-10) )
 				# end of if 
-
-			labels = np.zeros( shape=[self.numLabels], dtype=np.float32 )
-			labels[label] = 1.0
+			if label >= 0:
+				labels = np.zeros( shape=[self.numLabels], dtype=np.float32 )
+				labels[label] = 1.0
+			else:
+				labels = observed				
 			# end of if
 
 		return inputs, labels, profit
@@ -266,7 +266,21 @@ class CalcData:
 
 	def save( self, fileName ):
 	    return utils.save( fileName, self, 'CalcData' )
+
+
+	def getLabelByScale( self, observed ):
+		scale = self.lookAheadLabelScale
+		label = -1
+		for i in range( len(scale) ):
+			if observed < scale[i]:
+				label = i
+				break
+		if label == -1:
+			label = len(scale)
+		return label
+
 # end of Class CalcData
 
 def load( fileName ):
 	return utils.load( fileName, 'CalcData' )
+
