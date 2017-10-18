@@ -46,7 +46,6 @@ def processData(fileWithRates, calcData):
 	print(pnl, len(pnl))"""
 
 def trade_single(NNfile, fileWithRates,calcData=None):
-	print("@", fileWithRates)
 	nn = loadNetwork(NNfile)
 	if nn is None:
 		print "Failed to load network, exiting"
@@ -88,30 +87,36 @@ def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
 	profits=results[0]["profits"]
 	decisionPoints = zip(*decisions)
 	totalDecisions = [aggregateDecisions(x) for x in decisionPoints]
-	print(totalDecisions, len(totalDecisions))
-	
-### boosting
+	pnl = [0]
+	for decision, profit in zip(totalDecisions, profits):		
+		if max(decision) in (decision[0], decision[1]): # short
+			pnl.append(pnl[-1]-profit)
+		elif max(decision) in (decision[-1], decision[-2]): # long
+			pnl.append(pnl[-1]+profit)
+		else:
+			pnl.append(0)
+	pnl = pnl[1:]
+	return {"decisions":decisions, "pnl":pnl, "profits":profits}
 
-def decisionLogic_default(decisions):
-	return [sum(x) for x in zip(*decisions[0])]
+def show_graphs(result):
+	import matplotlib.pyplot as plt
 
-def aggregate(NNs, calcDatas, decisionLogic=decisionLogic_default):
-
-	def get_decisions(fileWithRates=None):
-		data = [prepare_data(fileWithRates=fileWithRates, calcData=x) for x in calc_datas]
-		
-	
-	return get_decisions
-	
+	# Train
+	plt.figure ()
+	plt.plot(result["pnl"])
+	plt.show()
 
 if __name__=="__main__":
-	NNfile = "20171017161235/999_c_2.219_a_0.3883_p_8.867e+04"
-	NNfile2 = "20171017161235/860_c_2.228_a_0.3896_p_8.819e+04"
-	fileWithRates = "../tnn-test/RTS_1h_150820_170820.txt"
-	calcData = calc_data(
-		trans_cost=10,
-		indnames=["Return","Volume","Momentum","Stochastic","RSI","SMA"],
-		history_tail=5,
-	)
-	#trade_single(NNfile, fileWithRates,calcData)
-	trade_aggregate([NNfile,NNfile2], fileWithRates,[calcData,calcData])
+	from tnn.calib.trade_config import params
+
+	NNFiles = params["networks"]
+	fileWithRates=params["fileWithRates"]
+	calcDatas = params["calcDatas"]
+	aggregateLogic = params["aggregateLogic"]
+	result=None
+	if len(NNFiles) is 1:
+		result = trade_single(NNFiles[0], fileWithRates, calcDatas[0])
+	else:
+		result = trade_aggregate(NNFiles, fileWithRates, calcDatas, aggregateLogic)
+
+	show_graphs(result)

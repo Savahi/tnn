@@ -209,7 +209,7 @@ def __calcData( pastRates, futureRates ):
 
 def saveData( fileName, data, normOnly=False ):
     global logMessage
-    bOk = True
+    ok = True
 
     logMessage += "Saving into \"%s\"...\n" % (fileName)
 
