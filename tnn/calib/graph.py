@@ -14,7 +14,7 @@ def plot_curves(nn, cb=(lambda plot:plot.show())):
 
 	plt.subplot(233)
 	plt.plot(nn.balanceTrain)
-	plt.title("plt train")
+	plt.title("pnl train")
 
 	# Test
 
@@ -28,7 +28,7 @@ def plot_curves(nn, cb=(lambda plot:plot.show())):
 
 	plt.subplot(236)
 	plt.plot([x-10 for x in nn.balanceTest])
-	plt.title("plt test")
+	plt.title("pnl test")
 
 	
 
