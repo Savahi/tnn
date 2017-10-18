@@ -3,6 +3,7 @@ import numpy as np
 import taft
 import shelve
 from network import Network
+from calcdata import CalcData
 
 # Переменная для записи сообщений о ошибках
 logMessage = ""
@@ -70,11 +71,21 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     dtm = rates['dtm']
     length = rates['length']
 
-    if calcData is None:
-        calcData = __calcData
-    else: # Если задана пользовательская функция calcData, то проверяем, задана ли также функция preCalcData
-        if precalcData is not None:
-            precalcData(rates)
+    if calcData is None: # If None using the built in function
+        calcDataFunc = __calcData
+    elif isinstance( calcData, CalcData ): # If calcData is an object
+        calcDataFunc = calcData.run
+    elif callable( calcData ): # If calcData is a function
+        calcDataFunc = calcData
+    else:
+        return retErr
+
+    # If data precalculation is required
+    if precalcData is not None:
+        precalcData(rates)
+    elif isinstance( calcData, CalcData ):
+        if hasattr( calcData, 'precalcData' ):
+            calcData.precalcData(rates)
 
     nnInputs = []
     nnLabels = []
@@ -84,7 +95,7 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
         pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:], 'dtm':dtm[i:] }
         futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1], 'dtm':dtm[i-1::-1] }
 
-        res = calcData( pastRates, futureRates )
+        res = calcDataFunc( pastRates, futureRates )
         if isinstance( res, tuple ): # Если функция вернула tuple (как результат корректного завершени работы)
             inputs, labels, profit = res 
             if inputs is None or labels is None: # Удостоверимся, что главные переменные - не None
@@ -209,7 +220,7 @@ def __calcData( pastRates, futureRates ):
 
 def saveData( fileName, data, normOnly=False ):
     global logMessage
-    bOk = True
+    ok = True
 
     logMessage += "Saving into \"%s\"...\n" % (fileName)
 

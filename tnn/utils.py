@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 import tensorflow as tf
 import numpy as np
+import shelve
 
 # Принимает кодовую строку, обозначающую оптимизатор
 # Возвращает object - оптимизатор. Если был передан объект-оптимизатор - возвращает его же (сделано для удобства вызова)
@@ -81,4 +82,54 @@ def countLabels( labels ):
             if labels[i][j] == 1:
                 labelsCounter[j] += 1
     return labelsCounter
+# end of def
+
+
+# Saves data with a given key in a shelve file.
+# Returns True if ok.
+# Returns False if fails.
+def save( fileName, data, key ):
+    ok = True
+
+    try:    
+        s = shelve.open( fileName )
+    except Exception:
+        ok = False
+
+    if ok:
+        try:
+            s[key] = data
+        except Exception:
+            ok = False
+        finally:
+            s.close()
+
+    return ok
+# end of def 
+
+
+# Loads a given key from a shelve file.
+# Returns data is success.
+# Returns None if fails.
+def load( fileName, key ):
+    ok = True
+
+    try:
+        s = shelve.open( fileName )
+    except Exception:
+        ok = False
+        
+    if ok:
+        try:
+            data = s[key]
+            s.close()
+        except Exception:
+            ok = False
+        finally:
+            s.close()
+
+    if ok:
+        return data
+    else:
+        return None
 # end of def
