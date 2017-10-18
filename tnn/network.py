@@ -571,6 +571,18 @@ class Network:
 
         return output
     # end of def
+    def calcOutputs( self, x ):
+        output = None
+
+        outputOp = self.__createNetworkOutputOp()
+        
+        with tf.Session() as sess:
+
+            sess.run( tf.global_variables_initializer() )
+            output = sess.run( outputOp, feed_dict = { self.x: x } )
+
+        return output
+    # end of def
 
 
 # end of class
