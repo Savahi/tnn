@@ -567,7 +567,10 @@ class Network:
         with tf.Session() as sess:
 
             sess.run( tf.global_variables_initializer() )
-            output = sess.run( outputOp, feed_dict = { self.x: [x] } )
+            if len( np.shape(x) == 1 ): # Если подан 1-d array (нужен рассчет для одной точки) - преобразуем его в 2-d
+                # x = [x]
+                x = np.reshape( x, [1,self.numFeatures] )
+            output = sess.run( outputOp, feed_dict = { self.x: x } )
 
         return output
     # end of def
