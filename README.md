@@ -1,6 +1,6 @@
-TNN: Tensorflow Neural Network Framework for Algorithmic Trading 
-================================================================
-version 0.0.2
+TNN: Trading with Neural Networks. A Framework for Algorithmic Traders 
+======================================================================
+version 0.0.4
     
 > **Important notice**:
 > Nothing important yet... :)
@@ -18,9 +18,9 @@ Functions
 ### Network ###
 The constructor creates a Network object. / Конструктор, создает объект Network.
 Модуль: tnn.network (для использования небходимо: from tnn.network import Network).
-~~~
-*Network*(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
-~~~
+```python
+Network(numLayers=1, numNodes=[10], numFeatures=10, numLabels=2, stdDev=0.03, activationFuncs=None )
+```
     numLayers (integer, default:1) - Число hidden-слоев сети
     numNodes (list of integers, default:[10]) - Число узлов в каждом слое
     numFeatures (integer, default:10) - Размерность "инпутов" 
@@ -49,14 +49,14 @@ The constructor creates a Network object. / Конструктор, создае
 ### learn ###
 The method of the Network object. Provides the whole cycle of network learning. / Метод объекта Network. Обучает сеть.
 Модуль: tnn.network (для использования необходимо: from tnn.network import Network).
-~~~
-*learn*( x, y, profit=None, xTest=None, yTest=None, 
+```python
+learn( x, y, profit=None, xTest=None, yTest=None, 
     profitTest=None, shortTradesHaveNegativeProfit=True, 
     learningRate=0.05, balancer=0.0, autoBalancers=False, optimizer=None, numBatches=1, 
     tradingLabel=None, prognoseProb=None, 
     numEpochs=1000, summaryDir=None, printRate=20, learnIndicators=False, 
     saveRate=None, saveDir=None )
-~~~
+```
     x (2d numpy array, np.float64) - "инпуты" (samples) для обучения сети,  
         размерность numSamples x numFeatures -> в placeholder self.x
     y (2d numpy array, np.float64) - "аутпуты" (labels) для обучения сети,   
@@ -179,11 +179,13 @@ Loads network from file 'fileName'. / Загружает сеть из файл�
 ### prepareData ###
 Prepares data for network training and testing. / Готовит данные для обучения и тестирования сети.
 Модуль: tnn.io (для использования необходимо: from tnn.io import prepareData) 
-~~~
-*prepareData*( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None )
+```python
+prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
+    calcData=None, precalcData=None )
 
 Пример:
-	trainData, testData = prepareData( "RTS_1D.csv", detachTest=20 )
+    trainData, testData = prepareData( "RTS_1D.csv", detachTest=20 )
+```
 ~~~
 	fileWithRates (string) - файл с котировками в формате finam. 
 		Если указать fileWithRates==None, котировки можно передать 
@@ -224,10 +226,22 @@ Prepares data for network training and testing. / Готовит данные д
         float переменную, которая хранит доходность потенциальной сделки, открытой в 
         данной точке временного ряда, например:
         return [0.2234, 0.43234,..., 0.9934], [0,0,1], 525.2
-        Если аутпуты подсчитать не удается, функция должна вернуть "None, None, None".
+        Если аутпуты подсчитать не удается, функция должна вернуть "None, None, None" или просто "None".
+~~~
+Другой вариант использования параметра calcData - через этот параметр можно передать 
+[объект CalcData](calcdata.md) 
+~~~
+    precalcData (function, defalut:None) - Функция, которая будет вызвана один раз перед тем как 
+        prepareData в цикле начнет формировать данные для каждой точки временного ряда.
+        Своим единственным параметром precalcData должна иметь котировки (формат 
+        тот же, что и у параметра pastRates, см. выше). Функция precalcData может быть
+        использована в паре с пользовательской функцией calcData, например, для предварительного
+        подсчета статистических характеристик временного ряда.
+~~~
 
 [Пример реализации встроенной функции calcData() см. здесь](samples/calcData.py)
- 
+
+~~~ 
 	Функция prepareData возвращает две переменные (обе словари): trainData и testData. 
     Если detachTest is None, testData не создается и функция должна вернуть "None".
 	Формат обеих переменных следующий:

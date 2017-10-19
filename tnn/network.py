@@ -261,6 +261,10 @@ class Network:
                 summaryDir = self.learnDir + "_" + "summary"
             writer = tf.summary.FileWriter( summaryDir )
 
+        # !!!!FOR DEBUGGING PURPOSES ONLY!!!!
+        #utils.log( "X:\n" + str(x) )
+        #utils.log( "Y:\n" + str(y) )
+
         # Запускаем сессию
         with tf.Session() as sess:
             # Инициализируем переменные
@@ -293,7 +297,8 @@ class Network:
                     sess.run( [costOp, accuracyOp, tradeAccuracyOp, tradesNumOp], feed_dict = feedDict )
 
                 # !!!!FOR DEBUGGING PURPOSES ONLY!!!!
-                # utils.log( sess.run(yOp, feed_dict=feedDict) )
+                #utils.log( sess.run(yOp, feed_dict=feedDict) )
+                #utils.log( self.weights )
 
                 # Если передан массив с данными по доходности сделок - вычисляем доходность, которую дала бы сеть, 
                 # торгуя на обучающих (train) данных.

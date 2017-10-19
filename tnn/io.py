@@ -52,7 +52,7 @@ def loadNetwork( fileName ):
 def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None ):
     global logMessage
     logMessage = ""
-    retError = None, None
+    retErr = None, None
 
     if fileWithRates is not None:
         rates = taft.readFinam( fileWithRates ) # Читаем котировки из файла finam
@@ -61,7 +61,7 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
 
     if rates is None:
         logMessage += "No rates.\n"
-        return retError
+        return retErr
 
     op = rates['op']
     hi = rates['hi']

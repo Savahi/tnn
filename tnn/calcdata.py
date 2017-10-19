@@ -37,7 +37,7 @@ class CalcData:
 		scale (list of float, default:None) - Scale used to group oberved values 
 			(calculated by look-ahead functionality) into classes (labels)
 	'''
-	def addLookAheadOp( self, method="", interval=1, amplitude=None, scale=None, noOvernight=False ):
+	def addLookAheadOp( self, method="ochl", interval=1, amplitude=None, scale=None, noOvernight=False ):
 		self.lookAheadInterval = interval-1
 		self.lookAheadMethod = method
 		self.lookAheadNoOvernight = noOvernight
@@ -81,7 +81,7 @@ class CalcData:
 		for key in kwargs:
 			lookBackOpDict[key] = kwargs[key]
 
-		if name == 'high' or name == 'low':
+		if name == 'high' or name == 'low': # Для индикаторов high и low добавляем значение smoothing по умолчанию
 			if not 'smoothing' in lookBackOpDict:
 				lookBackOpDict['smoothing'] = 1
 
@@ -92,12 +92,12 @@ class CalcData:
 	def run( self, pastRates, futureRates ):
 		retErr = None, None, None
 
-		if len(pastRates) == 0:
+		if len(pastRates) == 0: # To avoid exception
 			return retErr
 
-		inputs = []
-		labels = None
-		profit = None
+		inputs = [] # To be returned as a set of inputs
+		labels = None # To be returned by the function
+		profit = None # To be returned by the function
 
 		cl0 = pastRates['cl'][0] # Последняя известная нам котировка - цена закрытия последней по времени поступления свечи
 		time0 = pastRates['dtm'][0] # Последняя известная нам котировка - ее дата и время
@@ -116,13 +116,27 @@ class CalcData:
 		if self.tradingTime is not None:
 			found = False
 			for i in range( len(self.tradingTime) ):
-				if time0.hour == self.tradingTime[i][0]:
-					if self.tradingTime[i][1] == None: # Если минуты не заданы
-						found = True
-						break
-					elif time0.minute == self.tradingTime[i][1]: # Если минуты заданы, нужно сравнение
-						found = True
-						break
+				hr = self.tradingTime[i][0]
+				if isinstance( hr, int ):
+					if time0.hour != hr:
+						continue
+				elif isinstance( hr, list ):
+					if time0.hour < hr[0] or time0.hour > hr[1]:
+						continue
+				elif hr is not None:
+					continue
+
+				mn = self.tradingTime[i][1]
+				if isinstance( mn, int ):
+					if time0.minute != mn:
+						continue
+				elif isinstance( mn, list ):
+					if time0.minute < mn[0] or time0.minute > mn[1]:
+						continue
+				elif mn is not None:
+					continue
+				found = True
+				break
 			if not found:
 				return retErr
 
@@ -179,6 +193,8 @@ class CalcData:
 
 		 	if inp is None:
 		 		return retErr
+
+		 	inputs.append(inp)
 		# end of for
 
 		if futureRates is None: # The function run 'for real', no future rates are known...
