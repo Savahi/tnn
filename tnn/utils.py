@@ -72,19 +72,6 @@ def log( logStr, fileName="log.txt" ):
 # end of def
 
 
-# Подсчитывает число labels в выборке и возвращает соответствующий np.array
-# Используется для контроля качества данных, подаваемых в сеть для обучения 
-def countLabels( labels ):
-    rows, cols = np.shape( labels )
-    labelsCounter = np.zeros( shape=[cols] )
-    for i in range( rows ):
-        for j in range( cols ):
-            if labels[i][j] == 1:
-                labelsCounter[j] += 1
-    return labelsCounter
-# end of def
-
-
 # Saves data with a given key in a shelve file.
 # Returns True if ok.
 # Returns False if fails.
@@ -132,4 +119,30 @@ def load( fileName, key ):
         return data
     else:
         return None
+# end of def
+
+
+# Создает шкалу [list of values] для разбиения на классы (labels)
+def createScale( values, numLabels ):
+    scale=[]
+
+    valuesSorted = np.sort( values )
+    numValuesSorted = len( valuesSorted )
+
+    for i in range( 1, numLabels ):
+        index = int( i * numValuesSorted / numLabels )
+        scale.append( valuesSorted[index] )
+
+    return scale
+
+# Подсчитывает число labels в выборке и возвращает соответствующий np.array
+# Используется для контроля качества данных, подаваемых в сеть для обучения 
+def countLabels( labels ):
+    rows, cols = np.shape( labels )
+    labelsCounter = np.zeros( shape=[cols] )
+    for i in range( rows ):
+        for j in range( cols ):
+            if labels[i][j] == 1:
+                labelsCounter[j] += 1
+    return labelsCounter
 # end of def

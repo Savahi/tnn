@@ -4,6 +4,7 @@ import taft
 import shelve
 from network import Network
 from calcdata import CalcData
+import utils
 
 # Переменная для записи сообщений о ошибках
 logMessage = ""
@@ -112,8 +113,8 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
         return retErr
 
     if isinstance( nnObserved[0], float ): # Instead of labels single observed float values has been received. Labeling is required. 
-        scale = createScale( nnObserved, calcData.numLabels )
-        calcData.lookAheadLabelScale = scale 
+        if calcData.lookAheadScale is None:
+            calcData.lookAheadScale = utils.createScale( nnObserved, calcData.numLabels )
         nnLabels = []
         for observedIndex in range( len(nnObserved) ):
             label = calcData.getLabelByScale( nnObserved[observedIndex] )
@@ -295,15 +296,3 @@ def loadData( fileName, normOnly=False ):
         return None
 # end of loadData()
 
-
-def createScale( values, numLabels ):
-    scale=[]
-
-    valuesSorted = np.sort( values )
-    numValuesSorted = len( valuesSorted )
-
-    for i in range( 1, numLabels ):
-        index = int( i * numValuesSorted / numLabels )
-        scale.append( valuesSorted[index] )
-
-    return scale

@@ -10,8 +10,8 @@ version 0.0.4
 [learn](#learn) - Обучение, тестирование и созранение параметров сети.  
 [calcOutput](#calcoutput) - Рассчитывает ответ сети на заданный "инпут".  
 [loadNetwork](#loadnetwork) - Загружает сеть, ранее сохраненную функцией [learn](#learn)  
-[prepareData](#preparedata) - Пересчитывает котировки в "инпуты" и "аутпуты" сети.  
-
+[prepareData](#preparedata) - Пересчитывает котировки в "инпуты" и "аутпуты" сети.   
+Related documents: [CalcData Class library](calcdata.md), [Historic Rates Format](rates.md)   
 Functions
 ----------
 

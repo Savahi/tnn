@@ -22,6 +22,12 @@ class CalcData:
 		self.lookBackOps = [] # { 'name': , 'shift':  , 'period': , etc }
 
 		self.precalcData = precalcData
+
+		self.lookAheadInterval = 0
+		self.lookAheadMethod = "cohl"
+		self.lookAheadNoOvernight = False
+		self.lookAheadAmplitude = None
+		self.lookAheadScale = None
 	# end of def
 
 	'''
@@ -37,12 +43,14 @@ class CalcData:
 		scale (list of float, default:None) - Scale used to group oberved values 
 			(calculated by look-ahead functionality) into classes (labels)
 	'''
-	def addLookAheadOp( self, method="ochl", interval=1, amplitude=None, scale=None, noOvernight=False ):
+	def addLookAheadOp( self, method="cohl", interval=1, amplitude=None, numLabels=None, scale=None, noOvernight=False ):
+		if numLabels is not None:
+			self.numLabels = numLabels
 		self.lookAheadInterval = interval-1
 		self.lookAheadMethod = method
 		self.lookAheadNoOvernight = noOvernight
 		self.lookAheadAmplitude = amplitude
-		self.lookAheadLabelScale = scale
+		self.lookAheadScale = scale
 
 		self.lookAheadFunc = None
 	# end of def
@@ -232,7 +240,7 @@ class CalcData:
 				if self.lookAheadInterval >= len(futureRates['cl']): # Can't look beyond the bounds
 					return retErr
 				profit = futureRates['cl'][self.lookAheadInterval] - op0
-				if self.lookAheadLabelScale is not None:
+				if self.lookAheadScale is not None:
 					label = self.getLabelByScale( profit )
 				else:
 					observed = profit
@@ -285,7 +293,7 @@ class CalcData:
 
 
 	def getLabelByScale( self, observed ):
-		scale = self.lookAheadLabelScale
+		scale = self.lookAheadScale
 		label = -1
 		for i in range( len(scale) ):
 			if observed < scale[i]:
