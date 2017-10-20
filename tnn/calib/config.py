@@ -1,5 +1,24 @@
 # -*- coding: utf-8 -*- 
 from tnn.data_handler.RTS_Ret_Vol_Mom_Sto_RSI_SMA_6 import calc_data
+from tnn.calcdata import CalcData
+
+# количество бинов
+CD = CalcData( 5 )
+
+# длина истории
+history_tail = 5
+
+for i in range(history_tail):
+	# задаем индикаторы
+	CD.addLookBackOp( "rsi", i, 6 )
+	CD.addLookBackOp( "stochastic", i, 6 )
+	CD.addLookBackOp( "roc", i, 6 )
+	CD.addLookBackOp( "sma", i, 6 )
+	CD.addLookBackOp( "return", i, 6 )
+	CD.addLookBackOp( "vol", i, 6 )
+
+# что предсказываем
+CD.addLookAheadOp( method="return", interval=1 )
 
 params = {
 	"network": {
@@ -12,12 +31,7 @@ params = {
 	
 	"raw_file":"../tnn-test/RTS_1h_150820_170820.txt",
 
-	# Функции формирования данных; None=поведение по умолчанию
-	"calcData": calc_data(
-		trans_cost=10,
-		indnames=["Return","Volume","Momentum","Stochastic","RSI","SMA"],
-		history_tail=5,
-	),
+	"calcData": CD,
 
 	# Параметры обучения
 	"learningRate":0.050,
