@@ -8,17 +8,19 @@ version 0.0.4
 ## CONTENTS / СОДЕРЖАНИЕ ##
 [CacData](#calcdata) - CalcDataConstructor / Конструктор.  
 [addLookBackOp](#addlookbackop) - Adding a new input (a method and details of how the input is to be calculated).  
-[addLookAheadOp](#addlookbackop) - Calculating of expected output and profit.  
-[addLookAheadFunc](#addlookbackfunc) - Calculating of expected output and profit.   
-[run](#run) - self explained. 
+[addLookAheadOp](#addlookaheadop) - Calculating of expected output and profit.  
+[addLookAheadFunc](#addlookaheadfunc) - Calculating of expected output and profit.   
+[run](#run) - self explained.  
+Related documents: [Network Class library](README.md), [Historic Rates Format](rates.md)  
 
 ### CalcData ###
-Creates an instance of CalcData class. / Создает экземпляр объекта CalcData.
-The CalcData object is used when:
-- Creating data for training and testing a network with the [prepareData](README.md#preparedata) function. In this case the CalcData object serves as the 'calcData' parameter of the function.
-- When using the network for prognosing. In this case the CalcData object is used for generating inputs for the network.  
+Creates an instance of CalcData class. The CalcData object is used:
+- Coupled with the [prepareData](README.md#preparedata) function when generating input data for network training and testing.
+In this case the CalcData object serves as the 'calcData' parameter of the [prepareData](README.md#preparedata) function.
+- When running the trained network in 'trade mode' for prognosing.
+In this case the CalcData object is used for generating inputs for the network.  
 
-Объект используется:  
+Создает экземпляр объекта CalcData. Объект используется:  
 - при создании данных для обучения и тестирования сети; в этом случае  он передается функции [prepareData](README.md#preparedata). 
 - при использовании сети в торговле; в этом случае он используется для генерации входных данных.
 
@@ -28,8 +30,18 @@ The CalcData object is used when:
 	numLabels (int, default:5) - The number of labels (classes)
 	intraDay (boolean, default:False) - If 'True' 'pastRates' and 'futureRates' are monitored 
 		to belong to the same day.
-	tradingDays (list of int, default:None) - Day(s) of week allowed for trading, '0'-monday, 4-'friday'
-	tradingTime (list of int pairs, default:None ) - Hours and minutes allowed for trading
+	tradingDays (list of int, default:None) - Day(s) of week allowed for trading, '0'-monday, 4-'friday'.
+		For example: [1,2,3] stands for tuesday, wednesday and thurthday as the days when 
+		trading is allowed. 
+	tradingTime (list of lists, default:None ) - Hours and minutes allowed for trading. 
+		Each item of the list is a pair of elements where the first one stands for the 
+		hour(s) and the second one stands for the minute(s). For example:
+		[[14,15]] - 14:15
+		[[14,[0,30]]] - from 14:00 to 14:30 (hours: 14, minutes: from 0 to 30)
+		[[14, None]] - from 14:00 to 14:59 (hours: 14, minutes: any)
+		[[[14-15],None]] - from 14:00 to 15:59 (hours: from 14 to 15, minutes: any)
+		[[None,0]] - beginning of every hour (hours: any, minutes: 0)
+		[[14,None],[15,[0,30]]] - from 14:00 to 15:30
 	precalcData (function, default:None) - A custom function to run before starting to 
 		generate data. The precalc function takes two arguments: a CalcData object and rates.
 For example: 
@@ -69,7 +81,7 @@ Determines how the sample outputs of the network (labels) should be calculated.
 ```
 ~~~
 method (string, default: 'cohl') - the method of calculating sample outputs (labels) 
-	for the network. The allowed values are:
+	for the network. The 	allowed values are:
 		'cohl': The ratio <close-less-open> divided by <high-less-low> is calculated within 
 			the interval given by the 'interval' parameter (see below);
 		'amplitude': Waits for the price to change from the highest to the lowest 
@@ -85,7 +97,8 @@ scale (list or array of float, default:None) - A scale used to group oberved val
 ~~~
 Example: 
 ```python 
-calcDataObject = CalcData(5)
+import tnn.calcdata
+calcDataObject = tnn.calcdata.CalcData(5)
 calcDataObject.addLookAheadOp( "ochl", 2 )
 ``` 
 
@@ -100,8 +113,9 @@ Instead of using the addLookAheadOp function a custom function can be used.
 		used for network training and testing.  
 ~~~
 	Example:
-```python
-		calcDataObject = CalcData(5)
+```python		
+		import tnn.calcdata
+		calcDataObject = tnn.calcdata.CalcData(5)
 
 		def lookAhead( calcDataObject, pastRates, futureRates ):
 			# doing calculations
@@ -118,49 +132,58 @@ Calculates inputs and (if required) sample output and profit.
 ```
 ~~~
 	pastRates (dictionary) - Historic data (rates) used to calcuate inputs.
-		pastRates['op'] (1d numpy array, float) - open rates where the latest element has index 0.
-		pastRates['hi'] (1d numpy array, float) - high rates where the latest element has index 0.
-		pastRates['lo'] (1d numpy array, float) - low rates where the latest element has index 0.
-		pastRates['cl'] (1d numpy array, float) - close rates where the latest element has index 0.
-		pastRates['dtm'] (1d array, datetime) - date and time values. 
-		pastRates['vol']  (1d numpy array, float) - volume data.
-		All the arrays are synchronized with each other so that for example:
-		pastRates['op'][0] is the open price of 0th candles, 
-		pastRates['cl'][0] is the close price of the 0th candle,
-		pastRates['dtm'][0] is the date and time for the 0th candle and
-		pastRates['vol'][0] is the volume for the 0th candle.
+~~~
+[See the format of the 'pastRates' variable here.](rates.md)
+~~~
 	futureRates (dictionary) - Data used to calculate sample output and profit for network
 		training and testing. If futureRates is None no calculations would be performed.
-		The format of the futureRates variable is the same as for the pastRates variable
-		with one exception: 0th index stands for the nearest "future", i.e.
+		The format of the 'futureRates' variable is the same as for the 'pastRates' one
+		with an exception: 0th index stands for the nearest "future", i.e.
 		futureRates['op'][0] is the first rate to come.
 
 	Returns inputs, labels, profit:
 		inputs (a list or numpy array, float) - The inputs.
 		labels (1d one-hot numpy array or a float) - Expected output of the network.
 			If a float (raw observed value) is returned, this value would be converted
-			into the one-hot array automatically.
-		profit (float) - Expected profit of the potential trade. 
+			into the one-hot array automatically. 
+			If futureRates is None the 'labels' variable is None too.
+		profit (float) - Expected profit of the potential trade.
+			If futureRates is None the 'profit' variable is None too. 
 ~~~
 
 The function is called implicitly by the prepareData function. As well the function
-can be called explicitly when running the network in order to obtain trading signals.
+can be called explicitly when running the network in order to create inputs and 
+obtain from the network a trading signal.
+Example:
+```python
+	import tnn.calcdata
+	calcData = tnn.calcdata.load('calcdata.svd')
+	inputs = calcData.run( rates, None )
+
+	from tnn.io import loadNetwork
+	nn = loadNetwork('nn.db')
+
+	from tnn.network import calcOutput
+	signal = calcOutput( inputs )
+```
 
 ### save ###
-Saves the CalcData object into a file for future load by the load() function.
+Saves the CalcData object into a file for future use.
+The object can be loaded later by the load() function.
 ```python
 	calcDataObject.save( fileName )
 ```
 
 ### load ###
 Loads the CalcData object previously saved by the save() function.
-def load( fileName ):
-
+```python
+load( fileName )
+```
 Example:
 ```python
 	calcData = CalcData(5)
 	# ...
-	calcData.save("calcdata.svd")
+	calcData.save('calcdata.svd')
 	# ...
 	import tnn.calcdata
 	calcData2 = tnn.calcdata.load('calcdata.svd')
