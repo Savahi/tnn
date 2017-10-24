@@ -6,6 +6,16 @@ from tnn.network import Network
 #from tnn.boosting import aggregate
 from tnn.data_handler.RTS_Ret_Vol_Mom_Sto_RSI_SMA_6 import calc_data
 
+def simple_sum(threshold = 2):
+	def f(decisions):
+		d = sum(decisions)
+		if d >= threshold:
+			return 1
+		elif d <= -threshold:
+			return -1
+		else:
+			return 0
+	return f
 
 def processData(fileWithRates, calcData):
 	trainData, testData = prepareData(fileWithRates=fileWithRates, calcData=calcData)
@@ -67,31 +77,64 @@ def trade_single(NNfile, fileWithRates,calcData=None):
 	pnl = pnl[1:]
 	return {"decisions":decisions, "pnl":pnl, "profits":profits}
 
-def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
-	def default_aggregateDecisions(decisions):
-		return [sum(x) for x in zip(*decisions)]
-	aggregateDecisions = aggregateDecisions or default_aggregateDecisions
-
-
-	"""NNs = []
-	for NNfile in NNfiles:
-		nn=loadNetwork(NNfile)
-		if nn is None:
-			print "Failed to load network, exiting"
-			return
-
-		NNs.append(nn)"""
+"""def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
+	#ggregateDecisions = aggregateDecisions or simple_sum
 	results = [trade_single(x,fileWithRates,y) for x,y in zip(NNfiles,calcDatas)]
 	decisions=[x["decisions"] for x in results]
+	print(decisions)
 	pnls = [x["pnl"] for x in results]
 	profits=results[0]["profits"]
 	decisionPoints = zip(*decisions)
 	totalDecisions = [aggregateDecisions(x) for x in decisionPoints]
 	pnl = [0]
 	for decision, profit in zip(totalDecisions, profits):		
-		if max(decision) in (decision[0], decision[1]): # short
+		if max(decision) == (decision[0]): # short
 			pnl.append(pnl[-1]-profit)
-		elif max(decision) in (decision[-1], decision[-2]): # long
+		elif max(decision) == (decision[-1]): # long
+			pnl.append(pnl[-1]+profit)
+		else:
+			pnl.append(0)
+	pnl = pnl[1:]
+	return {"decisions":decisions, "pnl":pnl, "profits":profits}"""
+
+def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
+
+	def flatten_decisions(decisions):
+		res = []
+		for decision in decisions:
+			if max(decision) == (decision[0]):
+				res.append(-1)
+			elif max(decision) == decision[-1]:
+				res.append(+1)
+			else:
+				res.append(0)
+		return res
+
+	def flipover(decisions):
+		res = [0] #extra 0 to be removed
+		for i in range(len(decisions)):
+			point = decisions[i]
+			if point is 0:
+				res.append(res[-1])
+			else:
+				res.append(point)
+		return res[1:]
+				
+
+	results = [trade_single(x,fileWithRates,y) for x,y in zip(NNfiles,calcDatas)]
+	decisions=[x["decisions"] for x in results]
+	flat_decisions = [ flatten_decisions(x) for x in decisions]
+	flip_decisions = [ flipover(x) for x in flat_decisions]
+ 	pnls = [x["pnl"] for x in results]
+	profits=results[0]["profits"]
+	decisionPoints = zip(*flip_decisions)
+	totalDecisions = [aggregateDecisions(x) for x in decisionPoints]
+	flipTotalDecisions = flipover(totalDecisions)
+	pnl = [0]
+	for decision, profit in zip(flipTotalDecisions, profits):		
+		if decision == -1: # short
+			pnl.append(pnl[-1]-profit)
+		elif decision == +1: # long
 			pnl.append(pnl[-1]+profit)
 		else:
 			pnl.append(0)
