@@ -24,36 +24,6 @@ def processData(fileWithRates, calcData):
 	profits= np.array(list(trainData['profit'])+list(testData['profit']))
 	return {'inputs':data, 'profits':profits}
 
-"""def trade_single(NNfile, fileWithRates,calcData=None):
-	nn = loadNetwork(NNfile)
-	if nn is None:
-		print "Failed to load network, exiting"
-		return
-	
-	trainData, testData = prepareData(fileWithRates=fileWithRates, calcData=calcData)
-	#data = {key:np.array(list(trainData[key])+list(testData[key])) for key in trainData.keys()}
-	data = np.array(list(trainData['inputs'])+list(testData['inputs']))
-	profits= np.array(list(trainData['profit'])+list(testData['profit']))
-	pnl = [0] # this zero is a mempty, to be removed
-	for input, profit, _ in zip(data,profits,range(500)): #TODO: remove limitation
-		decision = nn.calcOutput(input)[0]
-		#I'll put in laxer trading decision rules		
-		#if max(decision) is decision[0]:
-		if decision[0]>0.2:
-			# short
-			pnl.append(pnl[-1]-profit)
-		#elif max(decision) is decision[-1]:
-		elif decision[-1]>0.2:
-			# long
-			pnl.append(pnl[-1]+profit)
-		else:
-			# stay
-			pnl.append(pnl[-1])
-		
-		sys.stdout.write ("\rTrading {}% done".format (int (100.0 * len(pnl) / 500)) )
-		sys.stdout.flush()
-	pnl = pnl[1:]
-	print(pnl, len(pnl))"""
 
 def trade_single(NNfile, fileWithRates,calcData=None):
 	nn = loadNetwork(NNfile)
@@ -77,6 +47,7 @@ def trade_single(NNfile, fileWithRates,calcData=None):
 	pnl = pnl[1:]
 	return {"decisions":decisions, "pnl":pnl, "profits":profits}
 
+# old trade aggregate, without flipover trading
 """def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
 	#ggregateDecisions = aggregateDecisions or simple_sum
 	results = [trade_single(x,fileWithRates,y) for x,y in zip(NNfiles,calcDatas)]
@@ -97,6 +68,7 @@ def trade_single(NNfile, fileWithRates,calcData=None):
 	pnl = pnl[1:]
 	return {"decisions":decisions, "pnl":pnl, "profits":profits}"""
 
+# with flipover trading
 def trade_aggregate(NNfiles, fileWithRates,calcDatas,  aggregateDecisions=None):
 
 	def flatten_decisions(decisions):

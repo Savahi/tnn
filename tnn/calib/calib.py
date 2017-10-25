@@ -58,6 +58,10 @@ def calib (configfile):
 
 	print ("Showing the plot...")
 	plt.show()"""
+
+	"""def cb(plt):
+		plt.show()
+		plt.savefig( nn.learnDir + ".png", bbox_inches='tight' )"""
 	graph.plot_curves(nn)	
 
 

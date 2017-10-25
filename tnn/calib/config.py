@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*- 
-from tnn.data_handler.RTS_Ret_Vol_Mom_Sto_RSI_SMA_6 import calc_data
 from tnn.calcdata import CalcData
 
 # количество бинов
