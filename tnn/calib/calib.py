@@ -31,7 +31,7 @@ def calib (configfile):
 
 	nn.learn( trainData['inputs'], trainData['labels'], trainData['profit'], testData['inputs'], testData['labels'], testData['profit'], 
 		numEpochs=config["numEpochs"], balancer=0.0, learningRate=config["learningRate"], prognoseProb=None,
-		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=False, learnIndicators=True, saveRate=20 )	
+		optimizer=config["optimizer"], tradingLabel=None, flipOverTrading=True, learnIndicators=True, saveRate=20 )	
 
 	"""import matplotlib.pyplot as plt
 	titleText = "fl=%s, lr=%g, bl=%g, opt=%s, ep=%d fl=%d" % (config["raw_file"], config["learningRate"], 0, config["optimizer"], config["numEpochs"], 0)
@@ -58,6 +58,10 @@ def calib (configfile):
 
 	print ("Showing the plot...")
 	plt.show()"""
+
+	"""def cb(plt):
+		plt.show()
+		plt.savefig( nn.learnDir + ".png", bbox_inches='tight' )"""
 	graph.plot_curves(nn)	
 
 
