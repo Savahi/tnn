@@ -3,6 +3,7 @@ README.rst
 setup.cfg
 setup.py
 tnn/__init__.py
+tnn/calcdata.py
 tnn/io.py
 tnn/network.py
 tnn/utils.py

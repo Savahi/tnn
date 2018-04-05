@@ -1,7 +1,10 @@
 # -*- coding: utf-8 -*- 
 import numpy as np
 import taft
+import shelve
 from network import Network
+from calcdata import CalcData
+import utils
 
 # Переменная для записи сообщений о ошибках
 logMessage = ""
@@ -47,10 +50,10 @@ def loadNetwork( fileName ):
 
 
 # Готовит данные для обучения и тестирования сети. 
-def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None ):
+def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None, oneHot=True ):
     global logMessage
     logMessage = ""
-    retError = None, None
+    retErr = None, None
 
     if fileWithRates is not None:
         rates = taft.readFinam( fileWithRates ) # Читаем котировки из файла finam
@@ -59,7 +62,7 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
 
     if rates is None:
         logMessage += "No rates.\n"
-        return retError
+        return retErr
 
     op = rates['op']
     hi = rates['hi']
@@ -69,43 +72,79 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     dtm = rates['dtm']
     length = rates['length']
 
-    if calcData is None:
-        calcData = __calcData
-    else: # Если задана пользовательская функция calcData, то проверяем, задана ли также функция preCalcData
-        if precalcData is not None:
-            precalcData(rates)
+    # If data precalculation is required
+    if precalcData is not None:
+        precalcData(rates)
+    elif isinstance( calcData, CalcData ):
+        if callable( calcData.precalcData ):
+            calcData.precalcData( calcData, rates )
+
+    if calcData is None: # If None using the built in function
+        calcDataFunc = __calcData
+    elif isinstance( calcData, CalcData ): # If calcData is an object
+        calcDataFunc = calcData.run
+    elif callable( calcData ): # If calcData is a function
+        calcDataFunc = calcData
+    else:
+        return retErr
 
     nnInputs = []
-    nnLabels = []
+    nnObserved = []
     nnProfit = []
     for i in range(length-1,0,-1):
         # Inputs
         pastRates = { 'op': op[i:], 'hi':hi[i:], 'lo':lo[i:], 'cl':cl[i:], 'vol':vol[i:], 'dtm':dtm[i:] }
         futureRates = { 'op': op[i-1::-1], 'hi':hi[i-1::-1], 'lo':lo[i-1::-1], 'cl':cl[i-1::-1], 'vol':vol[i-1::-1], 'dtm':dtm[i-1::-1] }
 
-        res = calcData( pastRates, futureRates )
+        res = calcDataFunc( pastRates, futureRates )
         if isinstance( res, tuple ): # Если функция вернула tuple (как результат корректного завершени работы)
-            inputs, labels, profit = res 
-            if inputs is None or labels is None: # Удостоверимся, что главные переменные - не None
+            inputs, observed, profit = res 
+            if inputs is None or observed is None: # Удостоверимся, что главные переменные - не None
                 continue
         else: # Функция вернула не tuple - по соглашению это может быть только None, то есть "неудача"
             continue
         nnInputs.append( inputs )
-        nnLabels.append( labels )
+        nnObserved.append( observed )
         nnProfit.append( profit )
+
+    if len(nnInputs) == 0:
+        return retErr
+    if len(nnObserved) == 0:
+        return retErr
+
+    if isinstance( nnObserved[0], float ) and isinstance( calcData, CalcData ): # Instead of labels single observed float values has been received. Labeling is required. 
+        if calcData.lookAheadScale is None: 
+            calcData.lookAheadScale = utils.createScale( nnObserved, calcData.numLabels )
+        nnLabels = []
+        for observedIndex in range( len(nnObserved) ):
+            label = calcData.getLabelByScale( nnObserved[observedIndex] )
+            if oneHot:
+                labels = np.zeros( shape=[calcData.numLabels], dtype=np.float32 )
+                labels[label] = 1
+                nnLabels.append( labels )
+            else:
+                nnLabels.append(label)
+    else:
+        nnLabels = nnObserved
 
     nnInputs = np.array( nnInputs, dtype='float' )
     numSamples, numFeatures = np.shape( nnInputs )
     nnLabels = np.array( nnLabels, dtype='float' )
-    numLabels = np.shape( nnLabels )[1]
+    if oneHot:
+        numLabels = np.shape( nnLabels )[1]
+    else:
+        numLabels = int( np.max( nnLabels ) + 1 )       
     nnProfit = np.array( nnProfit, dtype='float' )      
     nnMean = np.zeros( shape=[numFeatures], dtype='float' )
     nnStd = np.zeros( shape=[numFeatures], dtype='float' )
 
+    if detachTest is not None:
+        detachStart = int( float(numSamples) * detachTest / 100.0 )
+
     if normalize: # Если нужна нормализация
         normIntervalStart = 0
         if detachTest is not None:
-            normIntervalStart = int( float(numSamples) * detachTest / 100.0 )
+            normIntervalStart = detachStart
 
         for i in range(numFeatures):
             status, mean, std = taft.normalize( nnInputs[:,i], normInterval=[normIntervalStart,numSamples] )
@@ -124,10 +163,10 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
             'numSamples':numSamples, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
         retval2 = None
     else:
-        retval1 = { 'inputs': nnInputs[normIntervalStart:], 'labels': nnLabels[normIntervalStart:], 'profit': nnProfit[normIntervalStart:], 
-            'numSamples':numSamples-normIntervalStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
-        retval2 = { 'inputs': nnInputs[:normIntervalStart], 'labels': nnLabels[:normIntervalStart], 'profit': nnProfit[:normIntervalStart], 
-            'numSamples':normIntervalStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
+        retval1 = { 'inputs': nnInputs[detachStart:], 'labels': nnLabels[detachStart:], 'profit': nnProfit[detachStart:], 
+            'numSamples':numSamples-detachStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
+        retval2 = { 'inputs': nnInputs[:detachStart], 'labels': nnLabels[:detachStart], 'profit': nnProfit[:detachStart], 
+            'numSamples':detachStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
 
     return( retval1, retval2 )
 # end of def prepareData
@@ -208,7 +247,7 @@ def __calcData( pastRates, futureRates ):
 
 def saveData( fileName, data, normOnly=False ):
     global logMessage
-    bOk = True
+    ok = True
 
     logMessage += "Saving into \"%s\"...\n" % (fileName)
 
@@ -265,3 +304,4 @@ def loadData( fileName, normOnly=False ):
     else:
         return None
 # end of loadData()
+

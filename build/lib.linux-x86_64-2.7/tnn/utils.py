@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*- 
 import tensorflow as tf
 import numpy as np
+import shelve
 
 # Принимает кодовую строку, обозначающую оптимизатор
 # Возвращает object - оптимизатор. Если был передан объект-оптимизатор - возвращает его же (сделано для удобства вызова)
@@ -52,11 +53,16 @@ def getActivationFunc( activationFuncs, index, outputLayer=False ):
 # end of def
 
 
-def log( logStr, fileName="log.txt" ):
+def log( logStr, fileName="log.txt", rewrite=False ):
     ok = True
 
+    if rewrite:
+        mode = "w"
+    else:
+        mode = "a"
+
     try:
-        logFile = open( fileName, "a" )
+        logFile = open( fileName, mode )
     except Exception:
         ok = False
 
@@ -71,14 +77,88 @@ def log( logStr, fileName="log.txt" ):
 # end of def
 
 
+# Saves data with a given key in a shelve file.
+# Returns True if ok.
+# Returns False if fails.
+def save( fileName, data, key ):
+    ok = True
+
+    try:    
+        s = shelve.open( fileName )
+    except Exception:
+        ok = False
+
+    if ok:
+        try:
+            s[key] = data
+        except Exception:
+            ok = False
+        finally:
+            s.close()
+
+    return ok
+# end of def 
+
+
+# Loads a given key from a shelve file.
+# Returns data is success.
+# Returns None if fails.
+def load( fileName, key ):
+    ok = True
+
+    try:
+        s = shelve.open( fileName )
+    except Exception:
+        ok = False
+        
+    if ok:
+        try:
+            data = s[key]
+            s.close()
+        except Exception:
+            ok = False
+        finally:
+            s.close()
+
+    if ok:
+        return data
+    else:
+        return None
+# end of def
+
+
+# Создает шкалу [list of values] для разбиения на классы (labels)
+def createScale( values, numLabels ):
+    scale=[]
+
+    valuesSorted = np.sort( values )
+    numValuesSorted = len( valuesSorted )
+
+    for i in range( 1, numLabels ):
+        index = int( i * numValuesSorted / numLabels )
+        scale.append( valuesSorted[index] )
+
+    return scale
+
 # Подсчитывает число labels в выборке и возвращает соответствующий np.array
 # Используется для контроля качества данных, подаваемых в сеть для обучения 
 def countLabels( labels ):
-    rows, cols = np.shape( labels )
-    labelsCounter = np.zeros( shape=[cols] )
-    for i in range( rows ):
-        for j in range( cols ):
-            if labels[i][j] == 1:
-                labelsCounter[j] += 1
-    return labelsCounter
+    shape = np.shape( labels )
+    if len(shape) == 2: # One-hot
+        rows, cols = shape
+        labelsCounter = np.zeros( shape=[cols] )
+        for i in range( rows ):
+            for j in range( cols ):
+                if labels[i][j] == 1:
+                    labelsCounter[j] += 1
+        return labelsCounter
+    else: # Not one-hot
+        rows = shape[0]
+        maxLabel = int( np.max( labels ) )
+        labelsCounter = []
+        for i in range(maxLabel+1):
+            labelsCounter.append(0)
+        for i in range(rows):
+            labelsCounter[ int(labels[i]) ] += 1
+        return labelsCounter
 # end of def

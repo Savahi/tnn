@@ -56,19 +56,20 @@ Adds another input for the network - an operation to be performed for calculatin
 	addLookBackOp( name="sma", shift=0, period=10 )
 ```	
 ~~~
-	name (string, default:"sma") - The name of an indicator to generate an input for the network. 
+	name (string, default:"sma") - The name of the indicator to use for generating an input value for the network. 
 		Possible values:
 			"high" - the highest value at the [shift:shift+period] interval
 			"low" - the lowest value at the [shift:shift+period] interval
-			"sma" - the Simple Moving Average value at the at the [shift:shift+period] interval
-			"rsi" - the RSI value at the [shift:shift+period] interval
-			"stochastic" - the Stochastic value at the [shift:shift+period] interval
-			"roc" - the ROC value at the [shift:shift+period] interval
+			"sma" - the Simple Moving Average value for the [shift:shift+period] interval
+			"rsi" - the RSI value for the [shift:shift+period] interval
+			"stochastic" - the Stochastic value for the [shift:shift+period] interval
+			"roc" - the ROC value for the [shift:shift+period] interval
+			"macd" - the MACD signal line value for the [shift:shift+period] interval
 			"vol" - the total volume of trades at the [shift:shift+period] interval
 			"return" - close[shift+period] - open[shift]
 	shift (int, default:0) - Shift "into the past". 0 stands for the most latest rates. 
-	period (int, default:10) - The lenght of an interval used to calculate 
-		the indicator given by 'name'.
+	period (int, default:10) - The lenght of the interval used to calculate 
+		the indicator ('name').
 ~~~
 Example: ```python calcDataObject.addLookBackOp( "sma", 1, 5 )``` stands for the Simple Moving
 Average with period 5 to be calculated for the last but one (1th) price candle. 

@@ -4,7 +4,7 @@ import numpy as np
 import datetime as dt
 import shelve
 import os
-import utils
+import tnn.utils
 
 class Network:
     # Общее число сетей
@@ -437,7 +437,7 @@ class Network:
     def __printEpochLog( self, printRate, epochNum, epochLog ):
         if printRate is not None:
             if epochNum % printRate == 0:
-                print epochLog
+                print( epochLog )
     # end of def
 
     # Инициализирует словари для операций с тензорами - train и test. 

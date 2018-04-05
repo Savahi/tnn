@@ -53,11 +53,16 @@ def getActivationFunc( activationFuncs, index, outputLayer=False ):
 # end of def
 
 
-def log( logStr, fileName="log.txt" ):
+def log( logStr, fileName="log.txt", rewrite=False ):
     ok = True
 
+    if rewrite:
+        mode = "w"
+    else:
+        mode = "a"
+
     try:
-        logFile = open( fileName, "a" )
+        logFile = open( fileName, mode )
     except Exception:
         ok = False
 
@@ -138,11 +143,22 @@ def createScale( values, numLabels ):
 # Подсчитывает число labels в выборке и возвращает соответствующий np.array
 # Используется для контроля качества данных, подаваемых в сеть для обучения 
 def countLabels( labels ):
-    rows, cols = np.shape( labels )
-    labelsCounter = np.zeros( shape=[cols] )
-    for i in range( rows ):
-        for j in range( cols ):
-            if labels[i][j] == 1:
-                labelsCounter[j] += 1
-    return labelsCounter
+    shape = np.shape( labels )
+    if len(shape) == 2: # One-hot
+        rows, cols = shape
+        labelsCounter = np.zeros( shape=[cols] )
+        for i in range( rows ):
+            for j in range( cols ):
+                if labels[i][j] == 1:
+                    labelsCounter[j] += 1
+        return labelsCounter
+    else: # Not one-hot
+        rows = shape[0]
+        maxLabel = int( np.max( labels ) )
+        labelsCounter = []
+        for i in range(maxLabel+1):
+            labelsCounter.append(0)
+        for i in range(rows):
+            labelsCounter[ int(labels[i]) ] += 1
+        return labelsCounter
 # end of def

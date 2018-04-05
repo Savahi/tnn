@@ -50,7 +50,7 @@ def loadNetwork( fileName ):
 
 
 # Готовит данные для обучения и тестирования сети. 
-def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None ):
+def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, calcData=None, precalcData=None, oneHot=True ):
     global logMessage
     logMessage = ""
     retErr = None, None
@@ -112,30 +112,39 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
     if len(nnObserved) == 0:
         return retErr
 
-    if isinstance( nnObserved[0], float ): # Instead of labels single observed float values has been received. Labeling is required. 
-        if calcData.lookAheadScale is None:
+    if isinstance( nnObserved[0], float ) and isinstance( calcData, CalcData ): # Instead of labels single observed float values has been received. Labeling is required. 
+        if calcData.lookAheadScale is None: 
             calcData.lookAheadScale = utils.createScale( nnObserved, calcData.numLabels )
         nnLabels = []
         for observedIndex in range( len(nnObserved) ):
             label = calcData.getLabelByScale( nnObserved[observedIndex] )
-            labels = np.zeros( shape=[calcData.numLabels], dtype=np.float32 )
-            labels[label] = 1
-            nnLabels.append( labels )
+            if oneHot:
+                labels = np.zeros( shape=[calcData.numLabels], dtype=np.float32 )
+                labels[label] = 1
+                nnLabels.append( labels )
+            else:
+                nnLabels.append(label)
     else:
         nnLabels = nnObserved
 
     nnInputs = np.array( nnInputs, dtype='float' )
     numSamples, numFeatures = np.shape( nnInputs )
     nnLabels = np.array( nnLabels, dtype='float' )
-    numLabels = np.shape( nnLabels )[1]
+    if oneHot:
+        numLabels = np.shape( nnLabels )[1]
+    else:
+        numLabels = int( np.max( nnLabels ) + 1 )       
     nnProfit = np.array( nnProfit, dtype='float' )      
     nnMean = np.zeros( shape=[numFeatures], dtype='float' )
     nnStd = np.zeros( shape=[numFeatures], dtype='float' )
 
+    if detachTest is not None:
+        detachStart = int( float(numSamples) * detachTest / 100.0 )
+
     if normalize: # Если нужна нормализация
         normIntervalStart = 0
         if detachTest is not None:
-            normIntervalStart = int( float(numSamples) * detachTest / 100.0 )
+            normIntervalStart = detachStart
 
         for i in range(numFeatures):
             status, mean, std = taft.normalize( nnInputs[:,i], normInterval=[normIntervalStart,numSamples] )
@@ -154,10 +163,10 @@ def prepareData( fileWithRates=None, rates=None, normalize=True, detachTest=20, 
             'numSamples':numSamples, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
         retval2 = None
     else:
-        retval1 = { 'inputs': nnInputs[normIntervalStart:], 'labels': nnLabels[normIntervalStart:], 'profit': nnProfit[normIntervalStart:], 
-            'numSamples':numSamples-normIntervalStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
-        retval2 = { 'inputs': nnInputs[:normIntervalStart], 'labels': nnLabels[:normIntervalStart], 'profit': nnProfit[:normIntervalStart], 
-            'numSamples':normIntervalStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
+        retval1 = { 'inputs': nnInputs[detachStart:], 'labels': nnLabels[detachStart:], 'profit': nnProfit[detachStart:], 
+            'numSamples':numSamples-detachStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
+        retval2 = { 'inputs': nnInputs[:detachStart], 'labels': nnLabels[:detachStart], 'profit': nnProfit[:detachStart], 
+            'numSamples':detachStart, 'numFeatures':numFeatures, 'numLabels':numLabels, 'mean':nnMean, 'std':nnStd }    
 
     return( retval1, retval2 )
 # end of def prepareData
